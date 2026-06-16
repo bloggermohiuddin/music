@@ -168,14 +168,16 @@ const DownloadsPage = {
             await Store.loadDownloads();
             this._updateQueue();
 
-            await this._downloadAndStore(data, downloadId, url);
-
-        } catch (e) {
-            Store.showNotification(`Download failed: ${e.message}`, 'error');
-        } finally {
             this._isDownloading = false;
             this._updateButtonLoading(false);
             if (input) input.value = '';
+
+            this._downloadAndStore(data, downloadId, url);
+
+        } catch (e) {
+            Store.showNotification(`Download failed: ${e.message}`, 'error');
+            this._isDownloading = false;
+            this._updateButtonLoading(false);
         }
     },
 
