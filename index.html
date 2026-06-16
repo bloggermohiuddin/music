@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="Audivo — Offline-first PWA music player. Play music, download from YouTube, create playlists.">
+<meta name="theme-color" content="#1db954">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Audivo">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Audivo">
+<meta name="msapplication-TileColor" content="#1db954">
+<meta name="msapplication-tap-highlight" content="no">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="dark">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: {} }
+};
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); overscroll-behavior: none; }
+#app { height: 100%; overflow: hidden; }
+#main-content { height: calc(100% - 60px); overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; }
+:root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.05);
+    --surface-hover: rgba(255,255,255,0.1);
+    --surface-active: rgba(255,255,255,0.15);
+    --text: #e8e8e8;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666;
+    --primary: #1db954;
+    --primary-hover: #1ed760;
+    --accent: #e91e63;
+    --border: rgba(255,255,255,0.08);
+    --shadow: rgba(0,0,0,0.5);
+    --glass-bg: rgba(10,10,15,0.85);
+    --glass-border: rgba(255,255,255,0.08);
+    --navbar-bg: rgba(10,10,15,0.95);
+    --player-bg: rgba(10,10,15,0.98);
+    --card-bg: rgba(255,255,255,0.04);
+    --input-bg: rgba(255,255,255,0.06);
+    --scrollbar: rgba(255,255,255,0.15);
+    --scrollbar-hover: rgba(255,255,255,0.25);
+    --sidebar-width: 240px;
+    --sidebar-mobile-overlay: 0;
+}
+/* Custom scrollbar for everything */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+/* Mobile sidebar overlay */
+#sidebar-backdrop {
+    position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    transition: opacity 0.3s ease;
+}
+#sidebar-inner { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+@media(max-width:1024px) {
+    #main-content { margin-left: 0 !important; }
+    :root { --sidebar-width: 0px; }
+}
+.glass { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); }
+.card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+.card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--shadow); }
+input[type="range"] { -webkit-appearance: none; appearance: none; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--primary); cursor: pointer; border: none; }
+.notification-item { max-width: 360px; pointer-events: all; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease-out; }
+.song-card, .search-item, .history-item { transition: all 0.2s ease; }
+#context-menu button:hover { background: var(--surface-hover); }
+#context-menu button { border-radius: 0.5rem; }
+.skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; border-radius: 0.5rem; }
+@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media(hover:none) {
+    .group-hover\:opacity-100 { opacity: 1 !important; }
+    .group-hover\:translate-y-0 { transform: translateY(0) !important; }
+}
+</style>
+</head>
+<body class="dark">
+<div id="app">
+    <div id="initial-loader" class="fixed inset-0 flex items-center justify-center z-[9999]" style="background:var(--bg);">
+        <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background:var(--primary);">
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <h2 class="text-xl font-bold mb-2" style="color:var(--text);">Audivo</h2>
+            <div class="w-8 h-8 mx-auto" style="border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+            <p class="text-sm mt-3" style="color:var(--text-secondary);">Initializing...</p>
+        </div>
+    </div>
+</div>
+<script src="/js/utils.js"></script>
+<script src="/js/db.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/store.js"></script>
+<script src="/js/router.js"></script>
+<script src="/js/player.js"></script>
+<script src="/js/components/header.js"></script>
+<script src="/js/components/sidebar.js"></script>
+<script src="/js/components/home.js"></script>
+<script src="/js/components/library.js"></script>
+<script src="/js/components/player.js"></script>
+<script src="/js/components/search.js"></script>
+<script src="/js/components/downloads.js"></script>
+<script src="/js/components/playlists.js"></script>
+<script src="/js/components/settings.js"></script>
+<script src="/js/components/history.js"></script>
+<script src="/js/components/favorites.js"></script>
+<script src="/js/components/contextmenu.js"></script>
+<script src="/js/components/miniplayer.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

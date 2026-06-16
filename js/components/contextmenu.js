@@ -1,0 +1,205 @@
+const ContextMenu = {
+    _el: null,
+    _song: null,
+    _longPressTimer: null,
+
+    init() {
+        this._el = document.getElementById('context-menu');
+        document.addEventListener('click', () => this.hide());
+        document.addEventListener('contextmenu', (e) => {
+            const songEl = e.target.closest('[data-song-id]');
+            if (songEl) {
+                e.preventDefault();
+                this.show(e.clientX, e.clientY, songEl.dataset.songId);
+            }
+        });
+
+        document.addEventListener('touchstart', (e) => {
+            const songEl = e.target.closest('[data-song-id]');
+            if (!songEl) return;
+            const touch = e.touches[0];
+            this._longPressTimer = setTimeout(() => {
+                e.preventDefault();
+                this.show(touch.clientX, touch.clientY, songEl.dataset.songId);
+            }, 500);
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => clearTimeout(this._longPressTimer));
+        document.addEventListener('touchmove', () => clearTimeout(this._longPressTimer));
+    },
+
+    show(x, y, songId) {
+        const song = Store.get('songs').find(s => s.id === songId);
+        if (!song || !this._el) return;
+        this._song = song;
+
+        const isFav = Store.get('favorites').some(f => f.id === songId);
+        const inQueue = Store.get('queue').some(q => q.id === songId);
+
+        this._el.innerHTML = `
+            <div class="py-1">
+                <button data-action="play" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    Play
+                </button>
+                <button data-action="queue" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text); ${inQueue ? 'opacity:0.5' : ''}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    ${inQueue ? 'Already in Queue' : 'Add to Queue'}
+                </button>
+                <button data-action="playlist" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    Add to Playlist
+                </button>
+                <button data-action="favorite" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:${isFav ? 'var(--primary)' : 'var(--text)'};">
+                    <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    ${isFav ? 'Remove from Favorites' : 'Add to Favorites'}
+                </button>
+                <button data-action="share" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                    Share
+                </button>
+                <div class="my-1" style="border-top:1px solid var(--border);"></div>
+                <button data-action="delete" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:#ef4444;">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Delete
+                </button>
+            </div>
+        `;
+
+        const menuW = 220;
+        const menuH = 300;
+        const viewW = window.innerWidth;
+        const viewH = window.innerHeight;
+        let posX = x;
+        let posY = y;
+        if (x + menuW > viewW) posX = viewW - menuW - 8;
+        if (y + menuH > viewH) posY = viewH - menuH - 8;
+        if (posX < 0) posX = 8;
+        if (posY < 0) posY = 8;
+
+        this._el.style.left = posX + 'px';
+        this._el.style.top = posY + 'px';
+        this._el.classList.remove('hidden');
+        this._el.style.opacity = '1';
+        this._el.style.transform = 'scale(1)';
+
+        this._el.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._handleAction(btn.dataset.action);
+            });
+        });
+    },
+
+    hide() {
+        if (!this._el) return;
+        this._el.style.opacity = '0';
+        this._el.style.transform = 'scale(0.95)';
+        setTimeout(() => this._el.classList.add('hidden'), 150);
+    },
+
+    async _handleAction(action) {
+        if (!this._song) return;
+        const song = this._song;
+        this.hide();
+
+        switch (action) {
+            case 'play':
+                const songs = Store.get('songs');
+                const idx = songs.findIndex(s => s.id === song.id);
+                if (idx >= 0) {
+                    Store.set('queue', songs.slice(idx));
+                    Store.set('queueIndex', 0);
+                    Player.play(songs[idx]);
+                    Router.navigate('/player');
+                }
+                break;
+            case 'queue':
+                Store.addToQueue(song);
+                Store.showNotification('Added to queue', 'success');
+                break;
+            case 'playlist':
+                const playlists = Store.get('playlists');
+                if (playlists.length === 0) {
+                    const name = await Modal.prompt('Create a playlist first', 'Playlist name');
+                    if (name) {
+                        const pl = await DB.createPlaylist(name);
+                        await Store.loadPlaylists();
+                        await DB.addSongToPlaylist(pl.id, song.id);
+                        Store.showNotification(`Added to "${name}"`, 'success');
+                    }
+                } else {
+                    this._showPlaylistPicker(song, playlists);
+                }
+                break;
+            case 'favorite':
+                await DB.toggleFavorite(song.id);
+                await Store.loadFavorites();
+                await Store.loadSongs();
+                Store.showNotification(song.favorite ? 'Removed from favorites' : 'Added to favorites', 'success');
+                break;
+            case 'share':
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title: song.title, text: `${song.title} - ${song.artist}` });
+                    } catch (e) {}
+                } else {
+                    await navigator.clipboard?.writeText(`${song.title} - ${song.artist}`);
+                    Store.showNotification('Copied to clipboard', 'success');
+                }
+                break;
+            case 'delete':
+                const confirmed = await Modal.confirm(`Delete "${song.title}"?`, 'Delete Song');
+                if (confirmed) {
+                    await DB.deleteSong(song.id);
+                    await Store.loadSongs();
+                    await Store.loadFavorites();
+                    await Store.loadHistory();
+                    Store.showNotification('Song deleted', 'success');
+                }
+                break;
+        }
+    },
+
+    _showPlaylistPicker(song, playlists) {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center';
+        overlay.style.background = 'rgba(0,0,0,0.6)';
+        overlay.style.backdropFilter = 'blur(4px)';
+
+        const box = document.createElement('div');
+        box.className = 'rounded-2xl p-4 w-72 max-h-80 overflow-y-auto';
+        box.style.background = 'var(--glass-bg)';
+        box.style.border = '1px solid var(--glass-border)';
+
+        box.innerHTML = `
+            <h3 class="text-sm font-semibold mb-3" style="color:var(--text);">Add to Playlist</h3>
+            ${playlists.map(p => `
+                <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-surface" style="color:var(--text-secondary);" data-pl-id="${p.id}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                    ${Utils.htmlEncode(p.name)}
+                </button>
+            `).join('')}
+            <button class="w-full mt-2 px-3 py-2 rounded-lg text-sm" style="color:var(--text-muted);" id="ctx-cancel-pl">Cancel</button>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        box.querySelectorAll('button[data-pl-id]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                await DB.addSongToPlaylist(btn.dataset.plId, song.id);
+                const pl = playlists.find(p => p.id === btn.dataset.plId);
+                Store.showNotification(`Added to "${pl?.name}"`, 'success');
+                overlay.remove();
+            });
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        box.querySelector('#ctx-cancel-pl')?.addEventListener('click', () => overlay.remove());
+    }
+};
+
+window.ContextMenu = ContextMenu;
