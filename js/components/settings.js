@@ -148,9 +148,23 @@ const SettingsPage = {
                     </section>
 
                     <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Updates</h2>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium" style="color:var(--text);">App Version</p>
+                                <p class="text-xs" style="color:var(--text-secondary);"><span id="app-version">v2.0</span> · Last checked: <span id="update-last-check">Never</span></p>
+                            </div>
+                            <button id="check-update-btn" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--primary); color:white;">
+                                Check for Updates
+                            </button>
+                        </div>
+                        <p id="update-status" class="text-xs mt-2 hidden" style="color:var(--text-muted);"></p>
+                    </section>
+
+                    <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
                         <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">About</h2>
                         <div class="space-y-2 text-sm" style="color:var(--text-secondary);">
-                            <p>Audivo <span id="app-version">v2.0</span></p>
+                            <p>Audivo <span id="app-version-about">v2.0</span></p>
                             <p>Offline-first PWA Music Application</p>
                             <p>All data stored locally in your browser</p>
                             <p>No server, no backend, no tracking</p>
@@ -244,11 +258,20 @@ const SettingsPage = {
 
         // Fetch version from Service Worker
         const vEl = document.getElementById('app-version');
+        const vEl2 = document.getElementById('app-version-about');
         if (vEl && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
             const channel = new MessageChannel();
-            channel.port1.onmessage = (e) => { vEl.textContent = 'v' + e.data; };
+            channel.port1.onmessage = (e) => {
+                vEl.textContent = 'v' + e.data;
+                if (vEl2) vEl2.textContent = 'v' + e.data;
+            };
             navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
         }
+        const lastCheck = localStorage.getItem('update-last-check');
+        const lastCheckEl = document.getElementById('update-last-check');
+        if (lastCheckEl && lastCheck) lastCheckEl.textContent = lastCheck;
+
+        document.getElementById('check-update-btn')?.addEventListener('click', () => SettingsPage._checkUpdate());
     },
 
     _setTheme(key) {
@@ -321,6 +344,58 @@ const SettingsPage = {
         Player.updateEqualizer();
         this.render();
         Store.showNotification('Settings reset to defaults', 'success');
+    },
+
+    async _checkUpdate() {
+        const btn = document.getElementById('check-update-btn');
+        const status = document.getElementById('update-status');
+        if (!btn || !status) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Checking...';
+        status.className = 'text-xs mt-2';
+        status.style.color = 'var(--text-muted)';
+        status.textContent = 'Checking for updates...';
+
+        try {
+            const registration = await navigator.serviceWorker.getRegistration('/');
+            if (!registration) {
+                status.textContent = 'Service Worker not registered';
+                btn.disabled = false;
+                btn.textContent = 'Check for Updates';
+                return;
+            }
+
+            await registration.update();
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+            if (registration.waiting) {
+                status.textContent = 'Update found! Applying...';
+                status.style.color = 'var(--primary)';
+                localStorage.setItem('update-last-check', timeStr);
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                return;
+            }
+
+            if (registration.installing) {
+                status.textContent = 'Update installing...';
+                status.style.color = 'var(--primary)';
+                localStorage.setItem('update-last-check', timeStr);
+                return;
+            }
+
+            status.textContent = 'Already up to date';
+            status.style.color = '#22c55e';
+            localStorage.setItem('update-last-check', timeStr);
+            document.getElementById('update-last-check').textContent = timeStr;
+        } catch (e) {
+            status.textContent = 'Update check failed — try again';
+            status.style.color = '#ef4444';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Check for Updates';
     },
 
     cleanup() {
