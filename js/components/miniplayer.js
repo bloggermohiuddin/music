@@ -27,7 +27,7 @@ const MiniPlayerComponent = {
                 <div class="flex items-center gap-3 px-4 py-2 max-w-screen-2xl mx-auto">
                     <div class="w-10 h-10 rounded-lg flex-shrink-0 overflow-hidden" style="background:var(--surface);">
                         ${song.thumbnail 
-                            ? `<img src="${song.thumbnail}" alt="" class="w-full h-full object-cover" loading="eager" decoding="async">`
+                            ? `<img src="${song.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">`
                             : `<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
                         }
                     </div>

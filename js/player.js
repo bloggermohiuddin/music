@@ -9,7 +9,7 @@ class AudioPlayer {
         this._crossfadeTimer = null;
         this._fadeTimer = null;
         this._mediaSession = 'mediaSession' in navigator;
-        this._waveformData = new Uint8Array(64);
+        this._waveformData = new Uint8Array(128);
         this._animationFrame = null;
         this._setupAudio();
         this._setupEventListeners();
@@ -41,7 +41,7 @@ class AudioPlayer {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 128;
+            this.analyser.fftSize = 256;
             this.gainNode = this.audioContext.createGain();
             this.source = this.audioContext.createMediaElementSource(this.audio);
             this.source.connect(this.analyser);
@@ -81,10 +81,15 @@ class AudioPlayer {
 
     async loadSong(song) {
         this.stop();
-        Store.set('currentSong', song);
+        const { blob, ...meta } = song;
+        Store.set('currentSong', meta);
         Store.set('currentTime', 0);
         Store.set('duration', song.duration || 0);
 
+        if (this._currentBlobUrl) {
+            URL.revokeObjectURL(this._currentBlobUrl);
+            this._currentBlobUrl = null;
+        }
         if (song.blob) {
             const url = URL.createObjectURL(song.blob);
             this.audio.src = url;
@@ -96,7 +101,11 @@ class AudioPlayer {
         }
 
         this._updateMediaSession();
-        await DB.addToHistory(song.id, 0);
+        try {
+            await DB.addToHistory(song.id, 0);
+        } catch (e) {
+            console.warn('Failed to add to history:', e);
+        }
         Store.loadHistory();
     }
 
@@ -233,7 +242,7 @@ class AudioPlayer {
     async _onEnded() {
         const crossfade = Store.get('crossfade');
         if (crossfade > 0) {
-            this._applyCrossfade();
+            await this._applyCrossfade();
         }
         await this.next();
     }
@@ -244,25 +253,28 @@ class AudioPlayer {
     }
 
     _applyCrossfade() {
-        const duration = Store.get('crossfade');
-        const fadeOutInterval = 50;
-        const steps = Math.floor((duration * 1000) / fadeOutInterval);
-        const stepSize = 1 / steps;
-        let currentStep = 0;
+        return new Promise(resolve => {
+            const duration = Store.get('crossfade');
+            const fadeOutInterval = 50;
+            const steps = Math.floor((duration * 1000) / fadeOutInterval);
+            const stepSize = 1 / steps;
+            let currentStep = 0;
 
-        if (this._crossfadeTimer) {
-            clearInterval(this._crossfadeTimer);
-        }
-
-        this._crossfadeTimer = setInterval(() => {
-            currentStep++;
-            const vol = Math.max(0, 1 - (currentStep * stepSize));
-            this.audio.volume = vol;
-            if (currentStep >= steps) {
+            if (this._crossfadeTimer) {
                 clearInterval(this._crossfadeTimer);
-                this.audio.volume = Store.get('volume');
             }
-        }, fadeOutInterval);
+
+            this._crossfadeTimer = setInterval(() => {
+                currentStep++;
+                const vol = Math.max(0, 1 - (currentStep * stepSize));
+                this.audio.volume = vol;
+                if (currentStep >= steps) {
+                    clearInterval(this._crossfadeTimer);
+                    this.audio.volume = Store.get('volume');
+                    resolve();
+                }
+            }, fadeOutInterval);
+        });
     }
 
     fadeIn(duration = 2000) {

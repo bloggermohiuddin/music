@@ -348,10 +348,7 @@ class MusicDatabase {
 
     async detectDuplicates(fileSize, title) {
         const songs = await this.getAll('songs');
-        return songs.filter(s =>
-            (s.size === fileSize) ||
-            (s.title && title && s.title.toLowerCase() === title.toLowerCase())
-        );
+        return songs.filter(s => s.size === fileSize);
     }
 }
 

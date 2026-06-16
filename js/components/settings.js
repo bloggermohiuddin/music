@@ -155,7 +155,7 @@ const SettingsPage = {
             await DB.importDatabase(data);
             await Store.refreshAll();
             this.render();
-            Store.showNotification('Backup imported successfully', 'success');
+            Store.showNotification(`Imported "${file.name}" successfully`, 'success');
         } catch (e) {
             Store.showNotification('Import failed: invalid file', 'error');
         }

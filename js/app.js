@@ -55,7 +55,6 @@
             await HeaderComponent.render();
             await SidebarComponent.render();
             await MiniPlayerComponent.render();
-            updateActiveNav();
             if (window.innerWidth <= 1024) {
                 Store.set('sidebarOpen', false);
             }
@@ -67,6 +66,7 @@
     Router.addRoute('/', async () => {
         try {
             document.title = 'Audivo - Home';
+            Router.setCleanup(HomePage.cleanup);
             await HomePage.render();
         } catch (e) { console.error('HomePage error:', e); }
     });
@@ -74,6 +74,7 @@
     Router.addRoute('/library', async () => {
         try {
             document.title = 'Audivo - Library';
+            Router.setCleanup(LibraryPage.cleanup);
             await LibraryPage.render();
         } catch (e) { console.error('LibraryPage error:', e); }
     });
@@ -81,6 +82,7 @@
     Router.addRoute('/player', async () => {
         try {
             document.title = 'Audivo - Now Playing';
+            Router.setCleanup(PlayerPage.cleanup);
             await PlayerPage.render();
         } catch (e) { console.error('PlayerPage error:', e); }
     });
@@ -88,6 +90,7 @@
     Router.addRoute('/search', async () => {
         try {
             document.title = 'Audivo - Search';
+            Router.setCleanup(SearchPage.cleanup);
             await SearchPage.render();
         } catch (e) { console.error('SearchPage error:', e); }
     });
@@ -95,6 +98,7 @@
     Router.addRoute('/downloads', async () => {
         try {
             document.title = 'Audivo - Downloads';
+            Router.setCleanup(DownloadsPage.cleanup);
             await DownloadsPage.render();
         } catch (e) { console.error('DownloadsPage error:', e); }
     });
@@ -102,6 +106,7 @@
     Router.addRoute('/playlists', async () => {
         try {
             document.title = 'Audivo - Playlists';
+            Router.setCleanup(PlaylistsPage.cleanup);
             await PlaylistsPage.render();
         } catch (e) { console.error('PlaylistsPage error:', e); }
     });
@@ -116,6 +121,7 @@
     Router.addRoute('/settings', async () => {
         try {
             document.title = 'Audivo - Settings';
+            Router.setCleanup(SettingsPage.cleanup);
             await SettingsPage.render();
         } catch (e) { console.error('SettingsPage error:', e); }
     });
@@ -123,6 +129,7 @@
     Router.addRoute('/history', async () => {
         try {
             document.title = 'Audivo - History';
+            Router.setCleanup(HistoryPage.cleanup);
             await HistoryPage.render();
         } catch (e) { console.error('HistoryPage error:', e); }
     });
@@ -130,6 +137,7 @@
     Router.addRoute('/favorites', async () => {
         try {
             document.title = 'Audivo - Favorites';
+            Router.setCleanup(FavoritesPage.cleanup);
             await FavoritesPage.render();
         } catch (e) { console.error('FavoritesPage error:', e); }
     });
@@ -199,7 +207,7 @@
     console.log('Router initialized');
 
     // Register keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
+    var _keyHandler = function(e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
         switch (e.code) {
@@ -236,7 +244,8 @@
                 }
                 break;
         }
-    });
+    };
+    document.addEventListener('keydown', _keyHandler);
 
     var lastWasMobile = window.innerWidth <= 1024;
     window.addEventListener('resize', function() {
@@ -249,10 +258,6 @@
             });
         }
     });
-
-    function updateActiveNav() {
-        document.querySelectorAll('.active-nav').forEach(el => el.classList.remove('active-nav'));
-    }
 
     function showNotification(message, type = 'info', duration = 3000) {
         const container = document.getElementById('notification-container');

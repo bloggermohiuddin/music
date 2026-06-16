@@ -1,9 +1,9 @@
+let _htmlEncoder = document.createElement('div');
+
 const Utils = {
-    formatTime(seconds) {
-        if (!seconds || isNaN(seconds)) return '0:00';
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return `${m}:${s.toString().padStart(2, '0')}`;
+    htmlEncode(str) {
+        _htmlEncoder.textContent = str;
+        return _htmlEncoder.innerHTML;
     },
 
     formatSize(bytes) {
@@ -110,15 +110,19 @@ const Utils = {
 
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-            metadata.duration = audioBuffer.duration;
-            audioContext.close();
+            try {
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                metadata.duration = audioBuffer.duration;
+            } finally {
+                audioContext.close();
+            }
         } catch (e) {
             console.warn('Could not decode audio for duration', e);
             const audio = new Audio(URL.createObjectURL(new Blob([arrayBuffer])));
             metadata.duration = await new Promise(res => {
-                audio.onloadedmetadata = () => { res(audio.duration); URL.revokeObjectURL(audio.src); };
-                audio.onerror = () => { res(0); URL.revokeObjectURL(audio.src); };
+                const timer = setTimeout(() => { res(0); URL.revokeObjectURL(audio.src); }, 10000);
+                audio.onloadedmetadata = () => { clearTimeout(timer); res(audio.duration); URL.revokeObjectURL(audio.src); };
+                audio.onerror = () => { clearTimeout(timer); res(0); URL.revokeObjectURL(audio.src); };
             });
         }
 
@@ -179,7 +183,7 @@ const Modal = {
             root.innerHTML = `
                 <div class="modal-overlay" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s ease;">
                     <div class="modal-box" style="width:100%;max-width:400px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:16px;padding:24px;transform:scale(0.95);transition:transform 0.2s ease;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-                        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;">${title}</h3>
+                        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;">${Utils.htmlEncode(title)}</h3>
                         <input type="text" id="modal-input" value="${(defaultValue || '').replace(/"/g, '&quot;')}" 
                             style="width:100%;padding:12px 16px;border-radius:12px;font-size:14px;outline:none;background:var(--input-bg);color:var(--text);border:1px solid var(--border);box-sizing:border-box;"
                             placeholder="Type here...">
@@ -205,10 +209,14 @@ const Modal = {
                 setTimeout(() => { root.innerHTML = ''; resolve(value); }, 200);
             }
 
-            okBtn.addEventListener('click', () => close(input.value));
-            cancelBtn.addEventListener('click', () => close(null));
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') close(input.value); if (e.key === 'Escape') close(null); });
-            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+            function onKeydown(e) {
+                if (e.key === 'Enter') { document.removeEventListener('keydown', onKeydown); close(input.value); }
+                if (e.key === 'Escape') { document.removeEventListener('keydown', onKeydown); close(null); }
+            }
+            document.addEventListener('keydown', onKeydown);
+            okBtn.addEventListener('click', () => { document.removeEventListener('keydown', onKeydown); close(input.value); });
+            cancelBtn.addEventListener('click', () => { document.removeEventListener('keydown', onKeydown); close(null); });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) { document.removeEventListener('keydown', onKeydown); close(null); } });
         });
     },
 
@@ -218,8 +226,8 @@ const Modal = {
             root.innerHTML = `
                 <div class="modal-overlay" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity 0.2s ease;">
                     <div class="modal-box" style="width:100%;max-width:400px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:16px;padding:24px;transform:scale(0.95);transition:transform 0.2s ease;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-                        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">${title}</h3>
-                        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">${message}</p>
+                        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">${Utils.htmlEncode(title)}</h3>
+                        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">${Utils.htmlEncode(message)}</p>
                         <div style="display:flex;gap:8px;justify-content:flex-end;">
                             <button id="modal-cancel" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);cursor:pointer;transition:all 0.15s;">Cancel</button>
                             <button id="modal-ok" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;background:#ef4444;color:white;border:none;cursor:pointer;transition:all 0.15s;">Confirm</button>
@@ -240,13 +248,19 @@ const Modal = {
                 setTimeout(() => { root.innerHTML = ''; resolve(value); }, 200);
             }
 
-            okBtn.addEventListener('click', () => close(true));
-            cancelBtn.addEventListener('click', () => close(false));
-            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
-            document.addEventListener('keydown', function handler(e) {
-                if (e.key === 'Escape') { close(false); document.removeEventListener('keydown', handler); }
-            });
+            function onKeydown(e) {
+                if (e.key === 'Escape') { document.removeEventListener('keydown', onKeydown); close(false); }
+                if (e.key === 'Enter') { document.removeEventListener('keydown', onKeydown); close(true); }
+            }
+            document.addEventListener('keydown', onKeydown);
+            okBtn.addEventListener('click', () => { document.removeEventListener('keydown', onKeydown); close(true); });
+            cancelBtn.addEventListener('click', () => { document.removeEventListener('keydown', onKeydown); close(false); });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) { document.removeEventListener('keydown', onKeydown); close(false); } });
         });
+    },
+
+    alert(title, message) {
+        return this.confirm(title, message);
     }
 };
 

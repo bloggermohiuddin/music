@@ -84,9 +84,13 @@ const PlayerPage = {
                                     class="w-20 md:w-24 h-1 rounded-full appearance-none cursor-pointer" style="background:var(--surface); accent-color:var(--primary);">
                             </div>
                             <div class="flex items-center gap-2">
-                                <select id="speed-select" class="text-xs px-2 py-1 rounded-lg" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
-                                    ${[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => `<option value="${s}" ${speed === s ? 'selected' : ''}>${s}x</option>`).join('')}
-                                </select>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => `
+                                        <button class="speed-btn px-2.5 py-1 rounded-lg text-xs transition-all ${speed === s ? 'ring-2' : 'hover:scale-105'}" 
+                                            data-speed="${s}"
+                                            style="${speed === s ? 'background:var(--primary); color:white;' : 'background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);'}">${s}x</button>
+                                    `).join('')}
+                                </div>
                             </div>
                         </div>
 
@@ -169,12 +173,20 @@ const PlayerPage = {
             });
         }
 
-        const speedSelect = document.getElementById('speed-select');
-        if (speedSelect) {
-            speedSelect.addEventListener('change', (e) => {
-                Player.setPlaybackSpeed(parseFloat(e.target.value));
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const speed = parseFloat(btn.dataset.speed);
+                Player.setPlaybackSpeed(speed);
+                document.querySelectorAll('.speed-btn').forEach(b => {
+                    b.style.background = 'var(--surface)';
+                    b.style.color = 'var(--text-secondary)';
+                    b.style.border = '1px solid var(--border)';
+                });
+                btn.style.background = 'var(--primary)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
             });
-        }
+        });
 
         const seekBar = document.getElementById('seek-bar');
         if (seekBar) {
@@ -198,7 +210,7 @@ const PlayerPage = {
         document.getElementById('btn-shuffle-all')?.addEventListener('click', () => {
             const songs = Store.get('songs');
             if (songs.length === 0) return;
-            const shuffled = [...songs].sort(() => Math.random() - 0.5);
+            const shuffled = Utils.shuffleArray([...songs]);
             Store.setQueue(shuffled, 0);
             Player.loadSong(shuffled[0]);
             Player.play();

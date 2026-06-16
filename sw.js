@@ -27,6 +27,7 @@ const STATIC_URLS = [
     '/js/components/history.js',
     '/js/components/favorites.js',
     '/js/components/miniplayer.js',
+    '/js/components/contextmenu.js',
     '/icons/icon.svg'
 ];
 
@@ -133,12 +134,17 @@ async function audioCacheFirst(request) {
 }
 
 async function imageCacheFirst(request) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(THUMB_CACHE);
+    const cached = await cache.match(request);
     if (cached) return cached;
     try {
         const response = await fetch(request);
         if (response && response.ok) {
-            const cache = await caches.open(THUMB_CACHE);
+            const keys = await cache.keys();
+            if (keys.length >= 200) {
+                const oldest = keys.slice(0, keys.length - 199);
+                await Promise.all(oldest.map(k => cache.delete(k)));
+            }
             cache.put(request, response.clone());
         }
         return response;

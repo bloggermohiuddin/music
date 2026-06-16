@@ -164,9 +164,9 @@ const HomePage = {
             try {
                 const metadata = await Utils.extractMetadata(file);
                 const blob = new Blob([await Utils.readFileAsArrayBuffer(file)], { type: file.type });
-                const dups = await DB.detectDuplicates(file.size, metadata.title);
+                const dups = await DB.detectDuplicates(file.size, metadata.title || file.name);
                 if (dups.length > 0) {
-                    Store.showNotification(`"${metadata.title}" already exists`, 'warning');
+                    Store.showNotification(`"${metadata.title || file.name}" already exists`, 'warning');
                     continue;
                 }
                 await Store.addSong({

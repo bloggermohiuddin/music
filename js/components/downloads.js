@@ -177,11 +177,10 @@ const DownloadsPage = {
             await Store.loadDownloads();
             this._updateQueue();
 
+            await this._downloadAndStore(data, downloadId, url, controller.signal);
             this._isDownloading = false;
             this._updateButtonLoading(false);
             if (input) input.value = '';
-
-            this._downloadAndStore(data, downloadId, url, controller.signal);
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');

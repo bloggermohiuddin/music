@@ -37,7 +37,7 @@ const SearchPage = {
                     <p class="text-sm mb-4" style="color:var(--text-secondary);">${results.length} result${results.length !== 1 ? 's' : ''} for "${Utils.htmlEncode(query)}"</p>
                     ${results.length === 0 ? `
                     <div class="text-center py-12">
-                        <p style="color:var(--text-muted);">No songs found. Try a different search.</p>
+                        <p style="color:var(--text-muted);">No songs found for "${Utils.htmlEncode(query)}". Try a different search.</p>
                     </div>
                     ` : `
                     <div class="space-y-1">

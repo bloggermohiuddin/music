@@ -5,6 +5,7 @@ var Router = new (function() {
     var listeners = new Set();
     var beforeHooks = [];
     var afterHooks = [];
+    var prevCleanup = null;
 
     window.addEventListener('popstate', function(e) { _handlePopState(e); });
 
@@ -22,6 +23,8 @@ var Router = new (function() {
     async function _render(path, route) {
         currentRoute = path;
         params = route.params || {};
+
+        if (prevCleanup) { prevCleanup(); prevCleanup = null; }
 
         var content = document.getElementById('main-content');
         if (content) {
@@ -82,6 +85,8 @@ var Router = new (function() {
 
         after: function(hook) { afterHooks.push(hook); },
 
+        setCleanup: function(fn) { prevCleanup = fn; },
+
         match: match,
 
         navigate: async function(path, replace) {
@@ -125,7 +130,7 @@ var Router = new (function() {
         },
 
         link: function(path) {
-            return "javascript:Router.navigate('" + path + "')";
+            return "javascript:void(Router.navigate('" + path + "'))";
         },
 
         getParams: function() {

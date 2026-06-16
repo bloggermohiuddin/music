@@ -349,7 +349,14 @@ const LibraryPage = {
                 } else {
                     this._collapsedGroups.add(artist);
                 }
-                this.render();
+                const songsDiv = btn.nextElementSibling;
+                if (songsDiv) {
+                    songsDiv.classList.toggle('hidden');
+                    const arrow = btn.querySelector('svg:last-child');
+                    if (arrow) {
+                        arrow.style.transform = arrow.style.transform === 'rotate(90deg)' ? '' : 'rotate(90deg)';
+                    }
+                }
             });
         });
     },

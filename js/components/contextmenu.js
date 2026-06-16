@@ -121,7 +121,8 @@ const ContextMenu = {
                 if (idx >= 0) {
                     Store.set('queue', songs.slice(idx));
                     Store.set('queueIndex', 0);
-                    Player.play(songs[idx]);
+                    Player.loadSong(songs[idx]);
+                    Player.play();
                     Router.navigate('/player');
                 }
                 break;
@@ -138,9 +139,9 @@ const ContextMenu = {
                 if (playlists.length === 0) {
                     const name = await Modal.prompt('Create a playlist first', 'Playlist name');
                     if (name) {
-                        const pl = await DB.createPlaylist(name);
+                        const plId = await DB.add('playlists', { name: name.trim(), created_at: Date.now() });
                         await Store.loadPlaylists();
-                        await DB.addSongToPlaylist(pl.id, song.id);
+                        await DB.addToPlaylist(plId, song.id);
                         Store.showNotification(`Added to "${name}"`, 'success');
                     }
                 } else {
