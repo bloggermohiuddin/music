@@ -329,9 +329,12 @@ class AudioPlayer {
     startSleepTimer(minutes) {
         if (this._sleepTimer) clearTimeout(this._sleepTimer);
         const ms = minutes * 60 * 1000;
+        this._sleepTimerEnd = Date.now() + ms;
         this._sleepTimer = setTimeout(() => {
+            this._sleepTimerEnd = null;
             this.fadeOut(3000);
-            Store.showNotification(`Sleep timer: ${minutes} min elapsed, playback stopped`, 'info');
+            Store.showNotification(`Sleep timer: elapsed, playback stopped`, 'info');
+            Store.set('sleepTimer', null);
         }, ms);
         Store.set('sleepTimer', minutes);
         Store.showNotification(`Sleep timer set for ${minutes} minutes`, 'info');
@@ -342,7 +345,18 @@ class AudioPlayer {
             clearTimeout(this._sleepTimer);
             this._sleepTimer = null;
         }
+        this._sleepTimerEnd = null;
         Store.set('sleepTimer', null);
+    }
+
+    getSleepTimerRemaining() {
+        if (!this._sleepTimerEnd) return null;
+        const remaining = Math.max(0, this._sleepTimerEnd - Date.now());
+        if (remaining <= 0) {
+            this._sleepTimerEnd = null;
+            return null;
+        }
+        return remaining;
     }
 
     getAudioContext() {

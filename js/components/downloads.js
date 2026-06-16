@@ -1,6 +1,7 @@
 const DownloadsPage = {
     _unsubs: [],
     _isDownloading: false,
+    _abortControllers: new Map(),
 
     async render() {
         const downloads = Store.get('downloads') || [];
@@ -89,8 +90,13 @@ const DownloadsPage = {
                             </span>
                         </div>
                         ${d.status === 'downloading' ? `
-                        <div class="h-2 rounded-full overflow-hidden" style="background:var(--surface);">
-                            <div class="h-full rounded-full transition-all duration-300 ease-out" style="background:linear-gradient(90deg, var(--primary), var(--primary-hover)); width:${d.progress || 0}%;"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:var(--surface);">
+                                <div class="h-full rounded-full transition-all duration-300 ease-out" style="background:linear-gradient(90deg, var(--primary), var(--primary-hover)); width:${d.progress || 0}%;"></div>
+                            </div>
+                            <button onclick="DownloadsPage._cancelDownload(${d.id})" class="p-1 rounded-lg flex-shrink-0 transition-all hover:scale-105" style="background:#ef4444; color:white;" title="Cancel">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>` : ''}
                         ${d.status === 'error' ? `<p class="text-xs mt-1" style="color:#ef4444;">Download failed. Please try again.</p>` : ''}
                         ${d.status === 'completed' ? `
@@ -164,6 +170,9 @@ const DownloadsPage = {
                 status: 'downloading'
             });
 
+            const controller = new AbortController();
+            this._abortControllers.set(downloadId, controller);
+
             Store.showNotification(`Downloading: ${data.title}`, 'info');
             await Store.loadDownloads();
             this._updateQueue();
@@ -172,7 +181,7 @@ const DownloadsPage = {
             this._updateButtonLoading(false);
             if (input) input.value = '';
 
-            this._downloadAndStore(data, downloadId, url);
+            this._downloadAndStore(data, downloadId, url, controller.signal);
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
@@ -223,9 +232,16 @@ const DownloadsPage = {
         }
     },
 
-    async _downloadAndStore(data, downloadId, originalUrl) {
+    _cancelDownload(downloadId) {
+        const controller = this._abortControllers.get(downloadId);
+        if (controller) {
+            controller.abort();
+        }
+    },
+
+    async _downloadAndStore(data, downloadId, originalUrl, signal) {
         try {
-            const response = await fetch(data.link);
+            const response = await fetch(data.link, { signal });
             const contentLength = response.headers.get('content-length');
             const total = parseInt(contentLength) || 0;
             const reader = response.body.getReader();
@@ -276,6 +292,15 @@ const DownloadsPage = {
             Store.showNotification(`"${data.title}" downloaded successfully!`, 'success');
 
         } catch (e) {
+            this._abortControllers.delete(downloadId);
+            if (e.name === 'AbortError') {
+                await DB.delete('downloads', downloadId);
+                const downloads = await DB.getDownloadQueue();
+                Store.set('downloads', downloads);
+                this._updateQueue();
+                Store.showNotification('Download cancelled', 'info');
+                return;
+            }
             await DB.updateDownload(downloadId, { status: 'error' });
             const downloads = await DB.getDownloadQueue();
             Store.set('downloads', downloads);

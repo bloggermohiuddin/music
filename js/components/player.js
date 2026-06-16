@@ -102,6 +102,10 @@ const PlayerPage = {
                             </button>
                         </div>
                         `}
+
+                        <div id="sleep-timer-section" class="mt-4">
+                            ${this._renderSleepTimer()}
+                        </div>
                     </div>
                 </div>
 
