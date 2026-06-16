@@ -66,9 +66,78 @@
     Router.addRoute('/', async () => {
         try {
             document.title = 'Audivo - Home';
-            Router.setCleanup(HomePage.cleanup.bind(HomePage));
+            Router.setCleanup(() => HomePage.cleanup());
             await HomePage.render();
         } catch (e) { console.error('HomePage error:', e); }
+    });
+
+    Router.addRoute('/library', async () => {
+        try {
+            document.title = 'Audivo - Library';
+            Router.setCleanup(() => LibraryPage.cleanup());
+            await LibraryPage.render();
+        } catch (e) { console.error('LibraryPage error:', e); }
+    });
+
+    Router.addRoute('/player', async () => {
+        try {
+            document.title = 'Audivo - Now Playing';
+            Router.setCleanup(() => PlayerPage.cleanup());
+            await PlayerPage.render();
+        } catch (e) { console.error('PlayerPage error:', e); }
+    });
+
+    Router.addRoute('/search', async () => {
+        try {
+            document.title = 'Audivo - Search';
+            Router.setCleanup(() => SearchPage.cleanup());
+            await SearchPage.render();
+        } catch (e) { console.error('SearchPage error:', e); }
+    });
+
+    Router.addRoute('/downloads', async () => {
+        try {
+            document.title = 'Audivo - Downloads';
+            Router.setCleanup(() => DownloadsPage.cleanup());
+            await DownloadsPage.render();
+        } catch (e) { console.error('DownloadsPage error:', e); }
+    });
+
+    Router.addRoute('/playlists', async () => {
+        try {
+            document.title = 'Audivo - Playlists';
+            Router.setCleanup(() => PlaylistsPage.cleanup());
+            await PlaylistsPage.render();
+        } catch (e) { console.error('PlaylistsPage error:', e); }
+    });
+
+    Router.addRoute('/playlist/:id', async (params) => {
+        try {
+            document.title = 'Audivo - Playlist';
+            await PlaylistDetailPage.render(params);
+        } catch (e) { console.error('PlaylistDetailPage error:', e); }
+    });
+
+    Router.addRoute('/settings', async () => {
+        try {
+            document.title = 'Audivo - Settings';
+            Router.setCleanup(() => SettingsPage.cleanup());
+            await SettingsPage.render();
+        } catch (e) { console.error('SettingsPage error:', e); }
+    });
+
+    Router.addRoute('/history', async () => {
+        try {
+            document.title = 'Audivo - History';
+            await HistoryPage.render();
+        } catch (e) { console.error('HistoryPage error:', e); }
+    });
+
+    Router.addRoute('/favorites', async () => {
+        try {
+            document.title = 'Audivo - Favorites';
+            await FavoritesPage.render();
+        } catch (e) { console.error('FavoritesPage error:', e); }
     });
 
     Router.addRoute('/library', async () => {

@@ -197,7 +197,7 @@ const HomePage = {
     },
 
     cleanup() {
-        this._unsubs.forEach(u => u());
+        (this._unsubs || []).forEach(u => u());
         this._unsubs = [];
     }
 };
