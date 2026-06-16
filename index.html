@@ -82,11 +82,17 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .animate-spin { animation: spin 1s linear infinite; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .fade-in { animation: fadeIn 0.3s ease-out; }
-.song-card, .search-item, .history-item { transition: all 0.2s ease; }
+.song-card, .search-item, .history-item { transition: all 0.2s ease; touch-action: manipulation; }
+.song-list-item { touch-action: manipulation; }
 #context-menu button:hover { background: var(--surface-hover); }
 #context-menu button { border-radius: 0.5rem; }
 .skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; border-radius: 0.5rem; }
 @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.now-playing-bars span { width: 2px; background: var(--primary); border-radius: 2px; animation: bars 0.8s ease-in-out infinite alternate; }
+.now-playing-bars span:nth-child(1) { height: 6px; animation-delay: 0s; }
+.now-playing-bars span:nth-child(2) { height: 10px; animation-delay: 0.2s; }
+.now-playing-bars span:nth-child(3) { height: 14px; animation-delay: 0.4s; }
+@keyframes bars { 0% { transform: scaleY(0.5); } 100% { transform: scaleY(1); } }
 @media(hover:none) {
     .group-hover\:opacity-100 { opacity: 1 !important; }
     .group-hover\:translate-y-0 { transform: translateY(0) !important; }

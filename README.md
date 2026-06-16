@@ -32,6 +32,7 @@
 - Drag-and-drop upload support
 - Duplicate detection
 - Grid / List / Artist view with sorting (date, title, artist, duration)
+- **Now playing indicator** — animated bars on currently playing song
 - **Edit song details** — rename title, artist, album, change thumbnail
 - **Single song delete** — right-click context menu or long-press
 - **Batch select** — multi-select and delete multiple songs at once
@@ -42,17 +43,22 @@
 - Thumbnail caching
 - Persistent offline storage
 - Download queue with progress tracking
+- **Cancel download** — abort any in-progress download
 
 ### Audio Player
 - Play / Pause / Stop / Seek / Volume / Mute
 - Playback speed (0.5x – 2x)
 - Repeat modes: none, all, one
 - Shuffle
+- **Shuffle All** — shuffle entire library into queue
 - Queue system with autoplay
+- **Queue drag reorder** — drag songs to rearrange queue
+- **Sort queue A–Z** — sort queue alphabetically
+- **Play Next** — insert song right after current track
 - Waveform visualizer (Web Audio API)
 - Crossfade (0–12 seconds)
 - Fade in / Fade out
-- Sleep timer (15/30/45/60 min)
+- **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown
 - Media Session API (lock screen controls)
 
 ### Playlist System
@@ -62,8 +68,8 @@
 - Song count tracking
 
 ### Context Menu
-- Right-click (desktop) or long-press (mobile) any song
-- Play, Add to Queue, Add to Playlist, Favorite, Share, Edit Details, Delete
+- Right-click (desktop) or long-press (mobile 400ms) any song
+- Play, Play Next, Add to Queue, Add to Playlist, Favorite, Share, Edit Details, Delete
 
 ### Search
 - Real-time instant search by title, artist, album
@@ -73,6 +79,11 @@
 - View total song count, size, thumbnails
 - Delete all songs
 - Export / Import full database as JSON backup
+
+### Error Handling
+- Global error boundary catches uncaught exceptions
+- Unhandled promise rejection tracking
+- Route-level try-catch prevents full app crashes
 
 ### Keyboard Shortcuts
 
@@ -254,7 +265,6 @@ Contributions are welcome! Here's how you can help:
 - Import playlists from CSV/JSON
 - WaveSurfer.js integration for better waveforms
 - PWA offline indicator banner
-- Song sharing via Web Share API
 - AirPlay / Chromecast support
 - Keyboard shortcut customization
 - Unit tests

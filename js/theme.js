@@ -154,6 +154,13 @@ class ThemeEngine {
         });
         localStorage.setItem('player-theme', themeName);
         DB.setSetting('theme', themeName);
+        let meta = document.querySelector('meta[name="theme-color"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'theme-color';
+            document.head.appendChild(meta);
+        }
+        meta.content = theme.colors.bg;
         document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: themeName, colors: theme.colors } }));
     }
 

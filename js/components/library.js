@@ -121,6 +121,7 @@ const LibraryPage = {
     },
 
     _renderListView(songs) {
+        const currentSong = Store.get('currentSong');
         return `
             <div class="rounded-xl overflow-hidden" style="background:var(--card-bg); border:1px solid var(--border);">
                 <div class="grid grid-cols-12 gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted); border-bottom:1px solid var(--border);">
@@ -140,7 +141,7 @@ const LibraryPage = {
                                 <input type="checkbox" class="hidden" ${this._selected.has(song.id) ? 'checked' : ''} data-select="${song.id}">
                                 ${this._selected.has(song.id) ? '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
                             </label>` : ''}
-                            <span>${i + 1}</span>
+                            <span>${song.id === currentSong?.id && Store.get('isPlaying') ? '<span class="now-playing-bars inline-flex items-end gap-px h-3"><span></span><span></span><span></span></span>' : i + 1}</span>
                         </div>
                         <div class="col-span-5 flex items-center gap-3">
                             <div class="w-10 h-10 rounded flex-shrink-0 overflow-hidden" style="background:var(--surface);">
@@ -188,10 +189,10 @@ const LibraryPage = {
                     const thumb = artistSongs.find(s => s.thumbnail)?.thumbnail;
                     return `
                         <div class="rounded-xl overflow-hidden" style="background:var(--card-bg); border:1px solid var(--border);">
-                            <button class="artist-group-header w-full flex items-center gap-4 px-4 py-3 transition-all" style="color:var(--text); hover:background:var(--surface-hover);" data-artist="${Utils.htmlEncode(artist)}">
+                            <button class="artist-group-header w-full flex items-center gap-4 px-4 py-3 transition-all" style="color:var(--text); hover:background:var(--surface-hover);" data-artist="${encodeURIComponent(artist)}">
                                 <div class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center" style="background:var(--surface);">
                                     ${thumb 
-                                        ? `<img src="${thumb}" alt="" class="w-full h-full object-cover">`
+                                        ? `<img src="${thumb}" alt="" class="w-full h-full object-cover" loading="lazy">`
                                         : `<svg class="w-6 h-6" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`
                                     }
                                 </div>
@@ -342,7 +343,7 @@ const LibraryPage = {
 
         document.querySelectorAll('.artist-group-header').forEach(btn => {
             btn.addEventListener('click', () => {
-                const artist = btn.dataset.artist;
+                const artist = decodeURIComponent(btn.dataset.artist);
                 if (this._collapsedGroups.has(artist)) {
                     this._collapsedGroups.delete(artist);
                 } else {

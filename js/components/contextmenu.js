@@ -20,11 +20,11 @@ const ContextMenu = {
         document.addEventListener('touchstart', (e) => {
             const songEl = e.target.closest('[data-song-id]');
             if (!songEl) return;
+            e.preventDefault();
             const touch = e.touches[0];
             this._longPressTimer = setTimeout(() => {
-                e.preventDefault();
                 this.show(touch.clientX, touch.clientY, songEl.dataset.songId);
-            }, 500);
+            }, 400);
         }, { passive: false });
 
         document.addEventListener('touchend', () => clearTimeout(this._longPressTimer));
@@ -44,6 +44,10 @@ const ContextMenu = {
                 <button data-action="play" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     Play
+                </button>
+                <button data-action="play-next" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                    Play Next
                 </button>
                 <button data-action="queue" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text); ${inQueue ? 'opacity:0.5' : ''}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -120,6 +124,10 @@ const ContextMenu = {
                     Player.play(songs[idx]);
                     Router.navigate('/player');
                 }
+                break;
+            case 'play-next':
+                Store.addToQueue(song, Store.get('queueIndex') + 1);
+                Store.showNotification('Playing next', 'success');
                 break;
             case 'queue':
                 Store.addToQueue(song);

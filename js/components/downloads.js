@@ -311,6 +311,8 @@ const DownloadsPage = {
     },
 
     cleanup() {
+        this._abortControllers.forEach(c => c.abort());
+        this._abortControllers.clear();
         this._unsubs.forEach(u => u());
         this._unsubs = [];
     }

@@ -114,11 +114,17 @@ const PlayerPage = {
                         <svg id="queue-arrow" class="w-4 h-4 transition-transform duration-200 ${queue.length > 0 ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         Queue (${queue.length})
                     </button>
+                    <div id="queue-actions" class="flex gap-1.5 mb-2 ${queue.length > 0 ? '' : 'hidden'}">
+                        <button id="btn-shuffle-all" class="px-2.5 py-1 rounded-lg text-xs transition-all hover:scale-105" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Shuffle All</button>
+                        <button id="btn-sort-queue" class="px-2.5 py-1 rounded-lg text-xs transition-all hover:scale-105" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">A-Z</button>
+                    </div>
                     <div id="queue-list" class="${queue.length > 0 ? '' : 'hidden'} space-y-1 max-h-40 overflow-y-auto">
                         ${queue.map((s, i) => `
-                            <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all"
-                                style="${i === Store.get('queueIndex') ? 'background:var(--surface-active); color:var(--primary);' : 'color:var(--text-secondary); hover:background:var(--surface-hover);'}">
-                                <span class="text-xs w-4" style="color:var(--text-muted);">${i + 1}</span>
+                            <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all queue-item"
+                                draggable="true"
+                                style="${i === Store.get('queueIndex') ? 'background:var(--surface-active); color:var(--primary);' : 'color:var(--text-secondary); hover:background:var(--surface-hover);'}"
+                                data-queue-index="${i}">
+                                <span class="text-xs w-4 flex-shrink-0 cursor-grab" style="color:var(--text-muted);" title="Drag to reorder">${i === Store.get('queueIndex') ? '▶' : '⋮'}</span>
                                 <span class="flex-1 truncate">${Utils.htmlEncode(s.title)}</span>
                                 <span class="text-xs" style="color:var(--text-muted);">${Utils.htmlEncode(s.artist)}</span>
                                 <button onclick="event.stopPropagation(); PlayerPage._removeFromQueue(${i})" class="p-1 rounded-lg transition-all hover:scale-110" style="color:var(--text-muted); hover:color:#ef4444; hover:background:rgba(239,68,68,0.1);">
@@ -188,6 +194,27 @@ const PlayerPage = {
                 if (arrow) arrow.classList.toggle('rotate-90');
             }
         });
+
+        document.getElementById('btn-shuffle-all')?.addEventListener('click', () => {
+            const songs = Store.get('songs');
+            if (songs.length === 0) return;
+            const shuffled = [...songs].sort(() => Math.random() - 0.5);
+            Store.setQueue(shuffled, 0);
+            Player.loadSong(shuffled[0]);
+            Player.play();
+            this.render();
+        });
+
+        document.getElementById('btn-sort-queue')?.addEventListener('click', () => {
+            const queue = Store.get('queue');
+            const sorted = [...queue].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            const current = Store.get('currentSong');
+            const newIdx = sorted.findIndex(s => s.id === current?.id);
+            Store.setQueue(sorted, newIdx >= 0 ? newIdx : 0);
+            this.render();
+        });
+
+        this._initQueueDragDrop();
     },
 
     _startWaveformDrawing() {
@@ -285,9 +312,16 @@ const PlayerPage = {
     },
 
     _removeFromQueue(index) {
+        const wasCurrent = index === Store.get('queueIndex');
         Store.removeFromQueue(index);
         const queueEl = document.getElementById('queue-list');
         const queue = Store.get('queue');
+        if (wasCurrent && queue.length > 0) {
+            const nextIdx = Math.min(index, queue.length - 1);
+            Store.set('queueIndex', nextIdx);
+            Player.loadSong(queue[nextIdx]);
+            Player.play();
+        }
         if (queueEl) {
             if (queue.length === 0) {
                 queueEl.classList.add('hidden');
@@ -372,6 +406,43 @@ const PlayerPage = {
     _updateSleepTimer() {
         const section = document.getElementById('sleep-timer-section');
         if (section) section.innerHTML = this._renderSleepTimer();
+    },
+
+    _initQueueDragDrop() {
+        let dragSrcIdx = null;
+        document.querySelectorAll('.queue-item').forEach(el => {
+            el.addEventListener('dragstart', (e) => {
+                dragSrcIdx = parseInt(el.dataset.queueIndex);
+                e.dataTransfer.effectAllowed = 'move';
+                el.style.opacity = '0.5';
+            });
+            el.addEventListener('dragend', () => {
+                el.style.opacity = '';
+                document.querySelectorAll('.queue-item').forEach(i => i.style.border = '');
+            });
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                document.querySelectorAll('.queue-item').forEach(i => i.style.border = '');
+                el.style.border = '1px dashed var(--primary)';
+            });
+            el.addEventListener('dragleave', () => {
+                el.style.border = '';
+            });
+            el.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const targetIdx = parseInt(el.dataset.queueIndex);
+                if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+                const queue = Store.get('queue').slice();
+                const [moved] = queue.splice(dragSrcIdx, 1);
+                queue.splice(targetIdx, 0, moved);
+                const current = Store.get('currentSong');
+                const newIdx = queue.findIndex(s => s.id === current?.id);
+                Store.setQueue(queue, newIdx >= 0 ? newIdx : 0);
+                this.render();
+                dragSrcIdx = null;
+            });
+        });
     },
 
     _startSleepCountdown() {

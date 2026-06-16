@@ -1,6 +1,15 @@
 (async function() {
     'use strict';
 
+    window.addEventListener('error', (e) => {
+        console.error('Uncaught error:', e.error);
+        Store.showNotification?.('Something went wrong. Check console.', 'error');
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+        console.error('Unhandled rejection:', e.reason);
+    });
+
     try {
         await DB.open();
         console.log('Database opened successfully');
@@ -42,63 +51,87 @@
     ContextMenu.init();
 
     Router.after(async (path) => {
-        await HeaderComponent.render();
-        await SidebarComponent.render();
-        await MiniPlayerComponent.render();
-        updateActiveNav();
-        if (window.innerWidth <= 1024) {
-            Store.set('sidebarOpen', false);
+        try {
+            await HeaderComponent.render();
+            await SidebarComponent.render();
+            await MiniPlayerComponent.render();
+            updateActiveNav();
+            if (window.innerWidth <= 1024) {
+                Store.set('sidebarOpen', false);
+            }
+        } catch (e) {
+            console.error('Error rendering layout:', e);
         }
     });
 
     Router.addRoute('/', async () => {
-        document.title = 'Audivo - Home';
-        await HomePage.render();
+        try {
+            document.title = 'Audivo - Home';
+            await HomePage.render();
+        } catch (e) { console.error('HomePage error:', e); }
     });
 
     Router.addRoute('/library', async () => {
-        document.title = 'Audivo - Library';
-        await LibraryPage.render();
+        try {
+            document.title = 'Audivo - Library';
+            await LibraryPage.render();
+        } catch (e) { console.error('LibraryPage error:', e); }
     });
 
     Router.addRoute('/player', async () => {
-        document.title = 'Audivo - Now Playing';
-        await PlayerPage.render();
+        try {
+            document.title = 'Audivo - Now Playing';
+            await PlayerPage.render();
+        } catch (e) { console.error('PlayerPage error:', e); }
     });
 
     Router.addRoute('/search', async () => {
-        document.title = 'Audivo - Search';
-        await SearchPage.render();
+        try {
+            document.title = 'Audivo - Search';
+            await SearchPage.render();
+        } catch (e) { console.error('SearchPage error:', e); }
     });
 
     Router.addRoute('/downloads', async () => {
-        document.title = 'Audivo - Downloads';
-        await DownloadsPage.render();
+        try {
+            document.title = 'Audivo - Downloads';
+            await DownloadsPage.render();
+        } catch (e) { console.error('DownloadsPage error:', e); }
     });
 
     Router.addRoute('/playlists', async () => {
-        document.title = 'Audivo - Playlists';
-        await PlaylistsPage.render();
+        try {
+            document.title = 'Audivo - Playlists';
+            await PlaylistsPage.render();
+        } catch (e) { console.error('PlaylistsPage error:', e); }
     });
 
     Router.addRoute('/playlist/:id', async (params) => {
-        document.title = 'Audivo - Playlist';
-        await PlaylistDetailPage.render(params);
+        try {
+            document.title = 'Audivo - Playlist';
+            await PlaylistDetailPage.render(params);
+        } catch (e) { console.error('PlaylistDetailPage error:', e); }
     });
 
     Router.addRoute('/settings', async () => {
-        document.title = 'Audivo - Settings';
-        await SettingsPage.render();
+        try {
+            document.title = 'Audivo - Settings';
+            await SettingsPage.render();
+        } catch (e) { console.error('SettingsPage error:', e); }
     });
 
     Router.addRoute('/history', async () => {
-        document.title = 'Audivo - History';
-        await HistoryPage.render();
+        try {
+            document.title = 'Audivo - History';
+            await HistoryPage.render();
+        } catch (e) { console.error('HistoryPage error:', e); }
     });
 
     Router.addRoute('/favorites', async () => {
-        document.title = 'Audivo - Favorites';
-        await FavoritesPage.render();
+        try {
+            document.title = 'Audivo - Favorites';
+            await FavoritesPage.render();
+        } catch (e) { console.error('FavoritesPage error:', e); }
     });
 
     // Store subscriptions for reactive updates
