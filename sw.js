@@ -1,7 +1,10 @@
-const CACHE_NAME = 'audivo-v2';
-const STATIC_CACHE = 'music-static-v2';
-const AUDIO_CACHE = 'music-audio-v2';
-const THUMB_CACHE = 'music-thumbnails-v2';
+const APP_VERSION = '1.0.1';
+const CACHE_PREFIX = 'audivo-v';
+
+const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
+const STATIC_CACHE = 'music-static-' + APP_VERSION;
+const AUDIO_CACHE = 'music-audio-' + APP_VERSION;
+const THUMB_CACHE = 'music-thumbnails-' + APP_VERSION;
 
 const STATIC_URLS = [
     '/',
@@ -32,12 +35,13 @@ const STATIC_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(STATIC_CACHE).then((cache) => {
             return cache.addAll(STATIC_URLS).catch(err => {
                 console.warn('Some static files failed to cache:', err);
             });
-        }).then(() => self.skipWaiting())
+        })
     );
 });
 
@@ -156,6 +160,9 @@ async function imageCacheFirst(request) {
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
+    }
+    if (event.data && event.data.type === 'GET_VERSION') {
+        event.ports[0].postMessage(APP_VERSION);
     }
 });
 

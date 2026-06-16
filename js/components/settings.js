@@ -89,7 +89,7 @@ const SettingsPage = {
                     <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
                         <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">About</h2>
                         <div class="space-y-2 text-sm" style="color:var(--text-secondary);">
-                            <p>Audivo v2.0</p>
+                            <p>Audivo <span id="app-version">v2.0</span></p>
                             <p>Offline-first PWA Music Application</p>
                             <p>All data stored locally in your browser</p>
                             <p>No server, no backend, no tracking</p>
@@ -116,6 +116,14 @@ const SettingsPage = {
         document.getElementById('settings-speed')?.addEventListener('change', (e) => {
             Player.setPlaybackSpeed(parseFloat(e.target.value));
         });
+
+        // Fetch version from Service Worker
+        const vEl = document.getElementById('app-version');
+        if (vEl && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = (e) => { vEl.textContent = 'v' + e.data; };
+            navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+        }
     },
 
     _setTheme(key) {

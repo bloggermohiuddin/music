@@ -365,26 +365,44 @@
             el.style.opacity = '1';
         });
 
-        setTimeout(() => {
-            el.style.transform = 'translateX(120%)';
-            el.style.opacity = '0';
-            setTimeout(() => el.remove(), 300);
-        }, duration);
+        if (duration > 0) {
+            setTimeout(() => {
+                el.style.transform = 'translateX(120%)';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, duration);
+        }
     }
 
     // Register Service Worker if supported
     if ('serviceWorker' in navigator) {
         try {
             const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-            console.log('ServiceWorker registered:', registration.scope);
 
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showNotification('App updated! Refresh for new version.', 'info', 10000);
+                        showNotification('Update available — tap to refresh', 'info', 0);
+                        const container = document.getElementById('notification-container');
+                        if (container) {
+                            const last = container.lastElementChild;
+                            if (last) {
+                                last.style.cursor = 'pointer';
+                                last.addEventListener('click', () => {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                });
+                            }
+                        }
                     }
                 });
+            });
+
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
             });
         } catch (e) {
             console.warn('ServiceWorker registration failed:', e);
