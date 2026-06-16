@@ -8,6 +8,9 @@ const SettingsPage = {
         const speed = Store.get('playbackSpeed');
         const crossfade = Store.get('crossfade');
         const storageInfo = Store.get('storageInfo');
+        const eq = Store.get('equalizer');
+        const repeat = Store.get('repeat');
+        const shuffle = Store.get('shuffle');
 
         const el = document.getElementById('main-content');
         if (!el) return;
@@ -50,16 +53,58 @@ const SettingsPage = {
                                 <input type="range" id="settings-crossfade" min="0" max="12" step="1" value="${crossfade}" 
                                     class="w-32 h-1.5 rounded-full appearance-none cursor-pointer" style="background:var(--surface); accent-color:var(--primary);">
                             </div>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium" style="color:var(--text);">Playback Speed</p>
-                                    <p class="text-xs" style="color:var(--text-secondary);">Current: ${speed}x</p>
+                            <div>
+                                <p class="text-sm font-medium mb-2" style="color:var(--text);">Playback Speed</p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => `
+                                        <button class="settings-speed-btn px-2.5 py-1 rounded-lg text-xs transition-all ${speed === s ? 'ring-2' : 'hover:scale-105'}" 
+                                            data-speed="${s}"
+                                            style="${speed === s ? 'background:var(--primary); color:white;' : 'background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);'}">${s}x</button>
+                                    `).join('')}
                                 </div>
-                                <select id="settings-speed" class="text-sm px-3 py-2 rounded-lg" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
-                                    ${[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => `<option value="${s}" ${speed === s ? 'selected' : ''}>${s}x</option>`).join('')}
-                                </select>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium mb-2" style="color:var(--text);">Default Repeat</p>
+                                <div class="flex gap-1.5">
+                                    ${['none', 'all', 'one'].map(r => `
+                                        <button class="settings-repeat-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                                            data-repeat="${r}"
+                                            style="${repeat === r ? 'background:var(--primary); color:white;' : 'background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);'}">${r === 'none' ? 'Off' : r === 'all' ? 'All' : 'One'}</button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium mb-2" style="color:var(--text);">Default Shuffle</p>
+                                <button id="settings-shuffle-toggle" class="relative w-12 h-6 rounded-full transition-all"
+                                    style="background:${shuffle ? 'var(--primary)' : 'var(--surface)'};">
+                                    <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all shadow"
+                                        style="background:white; transform:translateX(${shuffle ? '24px' : '0'});"></div>
+                                </button>
                             </div>
                         </div>
+                    </section>
+
+                    <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Equalizer</h2>
+                        <div class="flex items-center justify-between mb-3">
+                            <button id="eq-reset" class="text-xs px-2.5 py-1 rounded-lg transition-all" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Reset</button>
+                            <button id="eq-toggle" class="text-xs px-2.5 py-1 rounded-lg transition-all" 
+                                style="background:${Object.values(eq).some(v => v !== 0) ? 'var(--primary); color:white;' : 'var(--surface); color:var(--text-secondary); border:1px solid var(--border);'}">
+                                ${Object.values(eq).some(v => v !== 0) ? 'Enabled' : 'Disabled'}
+                            </button>
+                        </div>
+                        <div class="flex items-end gap-1 h-32" id="eq-sliders">
+                            ${Object.entries(eq).map(([freq, gain]) => `
+                                <div class="flex-1 flex flex-col items-center gap-1">
+                                    <input type="range" min="-12" max="12" step="1" value="${gain}" 
+                                        class="eq-slider w-6 h-20 appearance-none cursor-pointer" data-freq="${freq}"
+                                        orient="vertical"
+                                        style="background:var(--surface); accent-color:var(--primary); writing-mode:vertical-lr; direction:rtl;">
+                                    <span class="text-[9px]" style="color:var(--text-muted);">${freq >= 1000 ? (freq/1000)+'k' : freq}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="text-xs text-center mt-2" style="color:var(--text-muted);">-12dB to +12dB</p>
                     </section>
 
                     <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
@@ -79,10 +124,26 @@ const SettingsPage = {
                             </div>
                             <div class="flex flex-wrap gap-2 mt-4">
                                 <button onclick="SettingsPage._clearStorage('songs')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:#ef4444; border:1px solid var(--border);">Delete All Songs</button>
+                                <button onclick="SettingsPage._clearCache()" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:#f59e0b; border:1px solid var(--border);">Clear Cache</button>
                                 <button onclick="SettingsPage._exportBackup()" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">Export Backup</button>
                                 <button onclick="document.getElementById('import-backup-input').click()" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">Import Backup</button>
                                 <input type="file" id="import-backup-input" accept=".json" class="hidden" onchange="SettingsPage._importBackup(this.files[0])">
                             </div>
+                        </div>
+                    </section>
+
+                    <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Keyboard Shortcuts</h2>
+                        <div class="grid grid-cols-2 gap-2 text-sm" style="color:var(--text-secondary);">
+                            <div class="flex justify-between"><span>Space</span><span style="color:var(--text);">Play/Pause</span></div>
+                            <div class="flex justify-between"><span>←</span><span style="color:var(--text);">Seek -5s</span></div>
+                            <div class="flex justify-between"><span>→</span><span style="color:var(--text);">Seek +5s</span></div>
+                            <div class="flex justify-between"><span>↑</span><span style="color:var(--text);">Volume +10%</span></div>
+                            <div class="flex justify-between"><span>↓</span><span style="color:var(--text);">Volume -10%</span></div>
+                            <div class="flex justify-between"><span>N</span><span style="color:var(--text);">Next track</span></div>
+                            <div class="flex justify-between"><span>P</span><span style="color:var(--text);">Previous track</span></div>
+                            <div class="flex justify-between"><span>M</span><span style="color:var(--text);">Mute toggle</span></div>
+                            <div class="flex justify-between"><span>F</span><span style="color:var(--text);">Fullscreen</span></div>
                         </div>
                     </section>
 
@@ -94,6 +155,7 @@ const SettingsPage = {
                             <p>All data stored locally in your browser</p>
                             <p>No server, no backend, no tracking</p>
                         </div>
+                        <button onclick="SettingsPage._resetAll()" class="mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:#ef4444; border:1px solid var(--border);">Reset All Settings</button>
                     </section>
                 </div>
             </div>
@@ -111,10 +173,73 @@ const SettingsPage = {
             const val = parseInt(e.target.value);
             Player.setCrossfade(val);
             Store.set('crossfade', val);
+            document.querySelector('#settings-crossfade + p, .text-xs').textContent = val + ' seconds';
+        });
+        document.querySelectorAll('.settings-speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const speed = parseFloat(btn.dataset.speed);
+                Player.setPlaybackSpeed(speed);
+                document.querySelectorAll('.settings-speed-btn').forEach(b => {
+                    b.style.background = 'var(--surface)';
+                    b.style.color = 'var(--text-secondary)';
+                    b.style.border = '1px solid var(--border)';
+                    b.classList.remove('ring-2');
+                });
+                btn.style.background = 'var(--primary)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.classList.add('ring-2');
+            });
+        });
+        document.querySelectorAll('.settings-repeat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const repeat = btn.dataset.repeat;
+                Store.set('repeat', repeat);
+                document.querySelectorAll('.settings-repeat-btn').forEach(b => {
+                    b.style.background = 'var(--surface)';
+                    b.style.color = 'var(--text-secondary)';
+                    b.style.border = '1px solid var(--border)';
+                });
+                btn.style.background = 'var(--primary)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+            });
+        });
+        document.getElementById('settings-shuffle-toggle')?.addEventListener('click', function() {
+            const current = Store.get('shuffle');
+            Store.set('shuffle', !current);
+            this.style.background = !current ? 'var(--primary)' : 'var(--surface)';
+            this.querySelector('div').style.transform = !current ? 'translateX(24px)' : 'translateX(0)';
+        });
+
+        // Equalizer
+        document.querySelectorAll('.eq-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const freq = e.target.dataset.freq;
+                const gain = parseFloat(e.target.value);
+                const eq = { ...Store.get('equalizer') };
+                eq[freq] = gain;
+                Store.set('equalizer', eq);
+                Player.updateEqualizer();
+            });
+        });
+        document.getElementById('eq-reset')?.addEventListener('click', () => {
+            const eq = { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 };
+            Store.set('equalizer', eq);
+            Player.updateEqualizer();
             this.render();
         });
-        document.getElementById('settings-speed')?.addEventListener('change', (e) => {
-            Player.setPlaybackSpeed(parseFloat(e.target.value));
+        document.getElementById('eq-toggle')?.addEventListener('click', () => {
+            const eq = Store.get('equalizer');
+            const anyActive = Object.values(eq).some(v => v !== 0);
+            if (anyActive) {
+                const reset = { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 };
+                Store.set('equalizer', reset);
+            } else {
+                Store.set('equalizer', { 60: 3, 170: 2, 310: 0, 600: -1, 1000: 0, 3000: 1, 6000: 2, 12000: 3, 14000: 2, 16000: 1 });
+            }
+            Player.updateEqualizer();
+            this.render();
         });
 
         // Fetch version from Service Worker
@@ -144,6 +269,18 @@ const SettingsPage = {
         Store.showNotification('Storage cleared', 'info');
     },
 
+    async _clearCache() {
+        const ok = await Modal.confirm('Clear Cache', 'Delete all cached audio and thumbnails? Songs will remain in your library.');
+        if (!ok) return;
+        try {
+            const names = await caches.keys();
+            for (const name of names) await caches.delete(name);
+            Store.showNotification('Cache cleared', 'success');
+        } catch (e) {
+            Store.showNotification('Failed to clear cache', 'error');
+        }
+    },
+
     async _exportBackup() {
         try {
             const data = await DB.exportDatabase();
@@ -167,6 +304,23 @@ const SettingsPage = {
         } catch (e) {
             Store.showNotification('Import failed: invalid file', 'error');
         }
+    },
+
+    async _resetAll() {
+        const ok = await Modal.confirm('Reset All Settings', 'Reset volume, crossfade, speed, equalizer, and all preferences to defaults? Your songs and playlists will NOT be deleted.');
+        if (!ok) return;
+        Store.set('volume', 0.8);
+        Store.set('playbackSpeed', 1);
+        Store.set('crossfade', 0);
+        Store.set('repeat', 'none');
+        Store.set('shuffle', false);
+        Store.set('equalizer', { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 });
+        Player.setVolume(0.8);
+        Player.setPlaybackSpeed(1);
+        Player.setCrossfade(0);
+        Player.updateEqualizer();
+        this.render();
+        Store.showNotification('Settings reset to defaults', 'success');
     },
 
     cleanup() {

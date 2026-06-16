@@ -231,6 +231,39 @@ class AudioPlayer {
         Store.set('crossfade', seconds);
     }
 
+    updateEqualizer() {
+        if (!this._eqFilters) this._eqFilters = {};
+        const eq = Store.get('equalizer');
+        if (!this.audioContext) return;
+        const freqs = Object.keys(eq);
+        for (const freq of freqs) {
+            if (!this._eqFilters[freq]) {
+                const filter = this.audioContext.createBiquadFilter();
+                filter.type = 'peaking';
+                filter.frequency.value = parseInt(freq);
+                filter.Q.value = 1.4;
+                filter.gain.value = eq[freq];
+                if (this._lastEqNode) {
+                    this._lastEqNode.connect(filter);
+                }
+                this._lastEqNode = filter;
+                this._eqFilters[freq] = filter;
+            } else {
+                this._eqFilters[freq].gain.value = eq[freq];
+            }
+        }
+        const anyActive = Object.values(eq).some(v => v !== 0);
+        if (anyActive && !this._eqConnected && this._lastEqNode) {
+            this.gainNode.disconnect();
+            this._lastEqNode.connect(this.gainNode);
+            this._eqConnected = true;
+        } else if (!anyActive && this._eqConnected) {
+            this.gainNode.disconnect();
+            this.analyser.connect(this.gainNode);
+            this._eqConnected = false;
+        }
+    }
+
     _onTimeUpdate() {
         Store.set('currentTime', this.audio.currentTime);
     }
