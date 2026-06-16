@@ -58,6 +58,10 @@ const ContextMenu = {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                     Share
                 </button>
+                <button data-action="edit" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:var(--text);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    Edit Details
+                </button>
                 <div class="my-1" style="border-top:1px solid var(--border);"></div>
                 <button data-action="delete" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors" style="color:#ef4444;">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -148,6 +152,9 @@ const ContextMenu = {
                     Store.showNotification('Copied to clipboard', 'success');
                 }
                 break;
+            case 'edit':
+                this._showEditModal(song);
+                break;
             case 'delete':
                 const confirmed = await Modal.confirm(`Delete "${song.title}"?`, 'Delete Song');
                 if (confirmed) {
@@ -199,6 +206,75 @@ const ContextMenu = {
             if (e.target === overlay) overlay.remove();
         });
         box.querySelector('#ctx-cancel-pl')?.addEventListener('click', () => overlay.remove());
+    },
+
+    _showEditModal(song) {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center';
+        overlay.style.background = 'rgba(0,0,0,0.6)';
+        overlay.style.backdropFilter = 'blur(4px)';
+
+        const box = document.createElement('div');
+        box.className = 'rounded-2xl p-5 w-80 max-w-[90vw]';
+        box.style.background = 'var(--glass-bg)';
+        box.style.border = '1px solid var(--glass-border)';
+
+        box.innerHTML = `
+            <h3 class="text-base font-semibold mb-4" style="color:var(--text);">Edit Song Details</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-medium mb-1 block" style="color:var(--text-secondary);">Title</label>
+                    <input id="edit-title" type="text" value="${Utils.htmlEncode(song.title)}" class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                </div>
+                <div>
+                    <label class="text-xs font-medium mb-1 block" style="color:var(--text-secondary);">Artist</label>
+                    <input id="edit-artist" type="text" value="${Utils.htmlEncode(song.artist)}" class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                </div>
+                <div>
+                    <label class="text-xs font-medium mb-1 block" style="color:var(--text-secondary);">Album</label>
+                    <input id="edit-album" type="text" value="${Utils.htmlEncode(song.album || '')}" class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                </div>
+                <div>
+                    <label class="text-xs font-medium mb-1 block" style="color:var(--text-secondary);">Thumbnail URL</label>
+                    <input id="edit-thumb" type="text" value="${song.thumbnail || ''}" placeholder="https://..." class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-5">
+                <button id="edit-save" class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]" style="background:var(--primary); color:white;">Save</button>
+                <button id="edit-cancel" class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02]" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Cancel</button>
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        box.querySelector('#edit-save').addEventListener('click', async () => {
+            const title = box.querySelector('#edit-title').value.trim();
+            const artist = box.querySelector('#edit-artist').value.trim();
+            const album = box.querySelector('#edit-album').value.trim();
+            const thumbnail = box.querySelector('#edit-thumb').value.trim();
+
+            if (!title) {
+                box.querySelector('#edit-title').style.borderColor = '#ef4444';
+                return;
+            }
+
+            await DB.updateSong(song.id, {
+                title: title || song.title,
+                artist: artist || song.artist,
+                album: album || song.album,
+                thumbnail: thumbnail || song.thumbnail
+            });
+            await Store.loadSongs();
+            await Store.loadFavorites();
+            Store.showNotification('Song updated', 'success');
+            overlay.remove();
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        box.querySelector('#edit-cancel')?.addEventListener('click', () => overlay.remove());
     }
 };
 

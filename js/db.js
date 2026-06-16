@@ -338,6 +338,14 @@ class MusicDatabase {
         for (const p of psItems) await this.delete('playlist_songs', p.id);
     }
 
+    async updateSong(songId, updates) {
+        const song = await this.get('songs', songId);
+        if (!song) return null;
+        Object.assign(song, updates);
+        await this.put('songs', song);
+        return song;
+    }
+
     async detectDuplicates(fileSize, title) {
         const songs = await this.getAll('songs');
         return songs.filter(s =>
