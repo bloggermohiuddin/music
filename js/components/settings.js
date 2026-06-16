@@ -8,7 +8,6 @@ const SettingsPage = {
         const speed = Store.get('playbackSpeed');
         const crossfade = Store.get('crossfade');
         const storageInfo = Store.get('storageInfo');
-        const sleepTimer = Store.get('sleepTimer');
 
         const el = document.getElementById('main-content');
         if (!el) return;
@@ -54,21 +53,11 @@ const SettingsPage = {
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm font-medium" style="color:var(--text);">Playback Speed</p>
-                                    <p class="text-xs" style="color:var(--text-secondary);">Default: ${speed}x</p>
+                                    <p class="text-xs" style="color:var(--text-secondary);">Current: ${speed}x</p>
                                 </div>
-                                <select id="settings-speed" class="px-3 py-1.5 rounded-lg text-sm" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                                <select id="settings-speed" class="text-sm px-3 py-2 rounded-lg" style="background:var(--surface); color:var(--text); border:1px solid var(--border);">
                                     ${[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => `<option value="${s}" ${speed === s ? 'selected' : ''}>${s}x</option>`).join('')}
                                 </select>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium" style="color:var(--text);">Sleep Timer</p>
-                                    <p class="text-xs" style="color:var(--text-secondary);">${sleepTimer ? `${sleepTimer} min remaining` : 'Not set'}</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    ${[15, 30, 45, 60].map(m => `<button onclick="SettingsPage._setSleepTimer(${m})" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">${m}min</button>`).join('')}
-                                    ${sleepTimer ? '<button onclick="SettingsPage._cancelSleepTimer()" class="px-3 py-1.5 rounded-lg text-xs font-medium" style="background:#ef4444; color:white;">Cancel</button>' : ''}
-                                </div>
                             </div>
                         </div>
                     </section>
@@ -131,16 +120,6 @@ const SettingsPage = {
 
     _setTheme(key) {
         Theme.setTheme(key);
-        this.render();
-    },
-
-    _setSleepTimer(minutes) {
-        Player.startSleepTimer(minutes);
-        this.render();
-    },
-
-    _cancelSleepTimer() {
-        Player.cancelSleepTimer();
         this.render();
     },
 

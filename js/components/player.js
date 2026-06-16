@@ -111,17 +111,17 @@ const PlayerPage = {
 
                 <div id="queue-panel" class="px-4 md:px-8 pb-4">
                     <button id="toggle-queue" class="flex items-center gap-2 text-sm font-medium mb-2" style="color:var(--text-secondary);">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                        <svg id="queue-arrow" class="w-4 h-4 transition-transform duration-200 ${queue.length > 0 ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         Queue (${queue.length})
                     </button>
-                    <div id="queue-list" class="hidden space-y-1 max-h-40 overflow-y-auto">
+                    <div id="queue-list" class="${queue.length > 0 ? '' : 'hidden'} space-y-1 max-h-40 overflow-y-auto">
                         ${queue.map((s, i) => `
                             <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all"
                                 style="${i === Store.get('queueIndex') ? 'background:var(--surface-active); color:var(--primary);' : 'color:var(--text-secondary); hover:background:var(--surface-hover);'}">
                                 <span class="text-xs w-4" style="color:var(--text-muted);">${i + 1}</span>
                                 <span class="flex-1 truncate">${Utils.htmlEncode(s.title)}</span>
                                 <span class="text-xs" style="color:var(--text-muted);">${Utils.htmlEncode(s.artist)}</span>
-                                <button onclick="Store.removeFromQueue(${i})" class="p-1 rounded hover:bg-surface" style="color:var(--text-muted);">
+                                <button onclick="event.stopPropagation(); PlayerPage._removeFromQueue(${i})" class="p-1 rounded-lg transition-all hover:scale-110" style="color:var(--text-muted); hover:color:#ef4444; hover:background:rgba(239,68,68,0.1);">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
@@ -133,6 +133,7 @@ const PlayerPage = {
 
         this._bindEvents();
         this._startWaveformDrawing();
+        this._startSleepCountdown();
     },
 
     _bindEvents() {
@@ -181,7 +182,11 @@ const PlayerPage = {
 
         document.getElementById('toggle-queue')?.addEventListener('click', () => {
             const list = document.getElementById('queue-list');
-            if (list) list.classList.toggle('hidden');
+            const arrow = document.getElementById('queue-arrow');
+            if (list) {
+                list.classList.toggle('hidden');
+                if (arrow) arrow.classList.toggle('rotate-90');
+            }
         });
     },
 
@@ -279,8 +284,118 @@ const PlayerPage = {
         }
     },
 
+    _removeFromQueue(index) {
+        Store.removeFromQueue(index);
+        const queueEl = document.getElementById('queue-list');
+        const queue = Store.get('queue');
+        if (queueEl) {
+            if (queue.length === 0) {
+                queueEl.classList.add('hidden');
+            } else {
+                queueEl.innerHTML = queue.map((s, i) => `
+                    <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all"
+                        style="${i === Store.get('queueIndex') ? 'background:var(--surface-active); color:var(--primary);' : 'color:var(--text-secondary); hover:background:var(--surface-hover);'}">
+                        <span class="text-xs w-4" style="color:var(--text-muted);">${i + 1}</span>
+                        <span class="flex-1 truncate">${Utils.htmlEncode(s.title)}</span>
+                        <span class="text-xs" style="color:var(--text-muted);">${Utils.htmlEncode(s.artist)}</span>
+                        <button onclick="event.stopPropagation(); PlayerPage._removeFromQueue(${i})" class="p-1 rounded-lg transition-all hover:scale-110" style="color:var(--text-muted); hover:color:#ef4444; hover:background:rgba(239,68,68,0.1);">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+        const toggleBtn = document.getElementById('toggle-queue');
+        if (toggleBtn) {
+            const countSpan = toggleBtn.childNodes[toggleBtn.childNodes.length - 1];
+            if (countSpan) countSpan.textContent = ` Queue (${queue.length})`;
+        }
+    },
+
+    _renderSleepTimer() {
+        const remaining = Player.getSleepTimerRemaining();
+        const presets = [5, 10, 15, 30, 45, 60];
+
+        if (remaining) {
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            return `
+                <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl" style="background:var(--surface); border:1px solid var(--border);">
+                    <svg class="w-4 h-4 flex-shrink-0" style="color:var(--primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium" style="color:var(--text-secondary);">Sleep Timer</p>
+                        <p class="text-sm font-bold tabular-nums" style="color:var(--primary);" id="sleep-timer-countdown">${mins}:${String(secs).padStart(2, '0')}</p>
+                    </div>
+                    <button onclick="PlayerPage._cancelSleepTimer()" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style="background:#ef4444; color:white;">Cancel</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="px-3 py-2.5 rounded-xl" style="background:var(--surface); border:1px solid var(--border);">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-xs font-medium" style="color:var(--text-secondary);">Sleep Timer</p>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                    ${presets.map(m => `<button onclick="PlayerPage._setSleepTimer(${m})" class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all hover:scale-105" style="background:var(--card-bg); color:var(--text-secondary); border:1px solid var(--border);">${m}m</button>`).join('')}
+                </div>
+                <div class="flex gap-1.5">
+                    <input type="number" id="sleep-custom-input" min="1" max="480" placeholder="min" class="w-16 px-2 py-1 rounded-lg text-xs outline-none" style="background:var(--card-bg); color:var(--text); border:1px solid var(--border);">
+                    <button onclick="PlayerPage._setCustomSleepTimer()" class="px-3 py-1 rounded-lg text-xs font-medium transition-all hover:scale-105" style="background:var(--primary); color:white;">Set</button>
+                </div>
+            </div>
+        `;
+    },
+
+    _setSleepTimer(minutes) {
+        Player.startSleepTimer(minutes);
+        this._updateSleepTimer();
+    },
+
+    _setCustomSleepTimer() {
+        const input = document.getElementById('sleep-custom-input');
+        const minutes = parseInt(input?.value);
+        if (!minutes || minutes < 1 || minutes > 480) {
+            Store.showNotification('Enter 1-480 minutes', 'warning');
+            return;
+        }
+        Player.startSleepTimer(minutes);
+        this._updateSleepTimer();
+    },
+
+    _cancelSleepTimer() {
+        Player.cancelSleepTimer();
+        this._updateSleepTimer();
+    },
+
+    _updateSleepTimer() {
+        const section = document.getElementById('sleep-timer-section');
+        if (section) section.innerHTML = this._renderSleepTimer();
+    },
+
+    _startSleepCountdown() {
+        if (this._sleepCountdownInterval) return;
+        this._sleepCountdownInterval = setInterval(() => {
+            const el = document.getElementById('sleep-timer-countdown');
+            if (!el) return;
+            const remaining = Player.getSleepTimerRemaining();
+            if (!remaining) {
+                el.textContent = '0:00';
+                this._updateSleepTimer();
+                clearInterval(this._sleepCountdownInterval);
+                this._sleepCountdownInterval = null;
+                return;
+            }
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            el.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+        }, 1000);
+    },
+
     cleanup() {
         this._stopWaveformDrawing();
+        if (this._sleepCountdownInterval) clearInterval(this._sleepCountdownInterval);
         this._unsubs.forEach(u => u());
         this._unsubs = [];
     }
