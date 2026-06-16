@@ -320,7 +320,8 @@ const LibraryPage = {
         }
 
         document.querySelectorAll('.song-card, .song-list-item').forEach(el => {
-            el.addEventListener('dblclick', () => {
+            el.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
                 if (this._selectMode) return;
                 const id = el.dataset.songId;
                 if (id) this._playSong(id);

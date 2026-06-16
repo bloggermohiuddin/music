@@ -108,7 +108,7 @@ const SearchPage = {
         });
 
         document.querySelectorAll('.search-item').forEach(el => {
-            el.addEventListener('dblclick', () => {
+            el.addEventListener('dblclick', (e) => { e.stopPropagation();
                 const id = el.dataset.songId;
                 if (id) this._playSong(id);
             });

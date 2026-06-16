@@ -250,7 +250,21 @@ const PlayerPage = {
         await DB.toggleFavorite(songId);
         await Store.loadFavorites();
         await Store.loadSongs();
-        this.render();
+        const song = Store.get('songs').find(s => s.id === songId);
+        if (song) Store.set('currentSong', song);
+        this._updateFavButton(songId);
+    },
+
+    _updateFavButton(songId) {
+        const song = Store.get('songs').find(s => s.id === songId);
+        if (!song) return;
+        const btn = document.querySelector('[onclick*="_toggleFav"]');
+        if (!btn) return;
+        btn.style.color = song.favorite ? 'var(--primary)' : 'var(--text-secondary)';
+        btn.innerHTML = `
+            <svg class="w-3.5 h-3.5" fill="${song.favorite ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+            ${song.favorite ? 'Favorited' : 'Favorite'}
+        `;
     },
 
     _addToQueue(songId) {

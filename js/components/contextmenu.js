@@ -5,7 +5,10 @@ const ContextMenu = {
 
     init() {
         this._el = document.getElementById('context-menu');
-        document.addEventListener('click', () => this.hide());
+        document.addEventListener('click', (e) => {
+            if (!this._el.classList.contains('hidden') && this._el.contains(e.target)) return;
+            this.hide();
+        });
         document.addEventListener('contextmenu', (e) => {
             const songEl = e.target.closest('[data-song-id]');
             if (songEl) {

@@ -189,7 +189,7 @@ const HomePage = {
 
     _bindSongs() {
         document.querySelectorAll('.song-card').forEach(el => {
-            el.addEventListener('dblclick', () => {
+            el.addEventListener('dblclick', (e) => { e.stopPropagation();
                 const id = el.dataset.songId;
                 this._playSong(id);
             });

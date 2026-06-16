@@ -51,7 +51,7 @@ const HistoryPage = {
         `;
 
         document.querySelectorAll('.history-item').forEach(el => {
-            el.addEventListener('dblclick', () => {
+            el.addEventListener('dblclick', (e) => { e.stopPropagation();
                 const id = el.dataset.songId;
                 HistoryPage._playSong(id);
             });
