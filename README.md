@@ -347,6 +347,13 @@ Response:
 | Light | Clean light theme |
 | Glassmorphism | Frosted glass effect with purple accents |
 | Neon | Dark theme with cyan/magenta neon glow |
+| Forest | Earthy greens and deep forest tones |
+| Ocean | Cool blues and teals |
+| Sunset | Warm oranges and pinks |
+| Midnight | Deep navy blue with purple accents |
+| Dracula | Popular dark purple palette |
+| Cyberpunk | Vibrant magenta and cyan neon |
+| Sepia | Warm amber and brown retro tones |
 
 ---
 
