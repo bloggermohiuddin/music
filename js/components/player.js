@@ -124,10 +124,11 @@ const PlayerPage = {
                     </div>
                     <div id="queue-list" class="${queue.length > 0 ? '' : 'hidden'} space-y-1 max-h-40 overflow-y-auto">
                         ${queue.map((s, i) => `
-                            <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all queue-item"
+                            <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all queue-item cursor-pointer"
                                 draggable="true"
                                 style="${i === Store.get('queueIndex') ? 'background:var(--surface-active); color:var(--primary);' : 'color:var(--text-secondary); hover:background:var(--surface-hover);'}"
-                                data-queue-index="${i}">
+                                data-queue-index="${i}"
+                                onclick="PlayerPage._playQueueIndex(${i})">
                                 <span class="text-xs w-4 flex-shrink-0 cursor-grab" style="color:var(--text-muted);" title="Drag to reorder">${i === Store.get('queueIndex') ? '▶' : '⋮'}</span>
                                 <span class="flex-1 truncate">${Utils.htmlEncode(s.title)}</span>
                                 <span class="text-xs" style="color:var(--text-muted);">${Utils.htmlEncode(s.artist)}</span>
@@ -394,6 +395,15 @@ const PlayerPage = {
             const countSpan = toggleBtn.childNodes[toggleBtn.childNodes.length - 1];
             if (countSpan) countSpan.textContent = ` Queue (${queue.length})`;
         }
+    },
+
+    async _playQueueIndex(index) {
+        const queue = Store.get('queue');
+        if (index < 0 || index >= queue.length) return;
+        Store.set('queueIndex', index);
+        await Player.loadSong(queue[index]);
+        Player.play();
+        this.render();
     },
 
     _renderSleepTimer() {

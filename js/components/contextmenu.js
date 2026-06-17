@@ -119,8 +119,7 @@ const ContextMenu = {
                 const songs = Store.get('songs');
                 const idx = songs.findIndex(s => s.id === song.id);
                 if (idx >= 0) {
-                    Store.set('queue', songs.slice(idx));
-                    Store.set('queueIndex', 0);
+                    Store.setQueue(songs, idx);
                     Player.loadSong(songs[idx]);
                     Player.play();
                     Router.navigate('/player');
