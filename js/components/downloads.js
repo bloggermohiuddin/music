@@ -71,29 +71,32 @@ const DownloadsPage = {
     _renderSearchResults() {
         if (this._searchResults.length === 0) return '';
         return `
-            <div class="space-y-2">
-                <h2 class="text-lg font-semibold mb-3" style="color:var(--text);">Search Results</h2>
-                ${this._searchResults.map(r => `
-                    <div class="search-result-item flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200"
-                        style="background:var(--card-bg); border:1px solid var(--border); hover:background:var(--surface-hover);"
-                        data-url="${r.url}" data-title="${Utils.htmlEncode(r.title)}" data-thumb="${r.imgSrc || ''}" data-duration="${r.duration || ''}">
-                        <div class="w-16 h-12 rounded-lg flex-shrink-0 overflow-hidden" style="background:var(--surface);">
-                            ${r.imgSrc 
-                                ? `<img src="${r.imgSrc}" alt="" class="w-full h-full object-cover" loading="lazy">`
-                                : `<div class="w-full h-full flex items-center justify-center"><svg class="w-6 h-6" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
-                            }
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.title)}</p>
-                            <p class="text-xs" style="color:var(--text-secondary);">${r.duration || 'Unknown length'}</p>
-                        </div>
-                        <button class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0" 
-                            style="background:var(--primary); color:white; hover:scale-105;"
+            <div>
+                <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Search Results</h2>
+                <div class="search-results-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px;">
+                    ${this._searchResults.map(r => `
+                        <div class="search-result-item rounded-xl overflow-hidden cursor-pointer transition-all duration-200"
+                            style="background:var(--card-bg); border:1px solid var(--border); hover:transform:translateY(-2px); hover:box-shadow:0 4px 12px rgba(0,0,0,0.3);"
                             data-url="${r.url}" data-title="${Utils.htmlEncode(r.title)}" data-thumb="${r.imgSrc || ''}" data-duration="${r.duration || ''}">
-                            Download
-                        </button>
-                    </div>
-                `).join('')}
+                            <div class="relative" style="aspect-ratio:16/9; background:var(--surface);">
+                                ${r.imgSrc 
+                                    ? `<img src="${r.imgSrc}" alt="" class="w-full h-full object-cover" loading="lazy">`
+                                    : `<div class="w-full h-full flex items-center justify-center"><svg class="w-10 h-10" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
+                                }
+                                ${r.duration ? `<span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-xs font-medium" style="background:rgba(0,0,0,0.8); color:white;">${r.duration}</span>` : ''}
+                            </div>
+                            <div class="p-3">
+                                <p class="text-sm font-medium truncate mb-2" style="color:var(--text);">${Utils.htmlEncode(r.title)}</p>
+                                <button class="w-full py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5" 
+                                    style="background:var(--primary); color:white; hover:scale-105;"
+                                    data-url="${r.url}" data-title="${Utils.htmlEncode(r.title)}" data-thumb="${r.imgSrc || ''}" data-duration="${r.duration || ''}">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
         `;
     },
@@ -151,18 +154,17 @@ const DownloadsPage = {
         });
 
         document.addEventListener('click', (e) => {
-            const item = e.target.closest('.search-result-item, [data-url]');
-            if (!item) return;
-            const btn = e.target.closest('button[data-url]');
-            const isDownloadBtn = btn && btn.parentElement === item;
-            if (!isDownloadBtn && !item.classList.contains('search-result-item')) return;
-            e.stopPropagation();
-            this._downloadFromSearch(
-                item.dataset.url,
-                item.dataset.title,
-                item.dataset.thumb,
-                item.dataset.duration
-            );
+            const downloadBtn = e.target.closest('button[data-url]');
+            if (downloadBtn) {
+                e.stopPropagation();
+                this._downloadFromSearch(
+                    downloadBtn.dataset.url,
+                    downloadBtn.dataset.title,
+                    downloadBtn.dataset.thumb,
+                    downloadBtn.dataset.duration
+                );
+                return;
+            }
         });
 
         const uploadBtn = document.getElementById('upload-music-btn');
