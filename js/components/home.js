@@ -84,7 +84,7 @@ const HomePage = {
     _renderCard(song) {
         return `
             <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]" 
-                style="background:var(--card-bg); border:1px solid var(--border);" 
+                style="background:var(--card-bg); border:1px solid var(--border); touch-action:manipulation;" 
                 data-song-id="${song.id}"
                 onclick="HomePage._playSong('${song.id}')">
                 <div class="relative mb-3">
@@ -108,7 +108,7 @@ const HomePage = {
     _renderSmallCard(song) {
         return `
             <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]" 
-                style="background:var(--card-bg); border:1px solid var(--border);" 
+                style="background:var(--card-bg); border:1px solid var(--border); touch-action:manipulation;" 
                 data-song-id="${song.id}"
                 onclick="HomePage._playSong('${song.id}')">
                 <div class="relative mb-2">
@@ -187,14 +187,7 @@ const HomePage = {
         }
     },
 
-    _bindSongs() {
-        document.querySelectorAll('.song-card').forEach(el => {
-            el.addEventListener('dblclick', (e) => { e.stopPropagation();
-                const id = el.dataset.songId;
-                this._playSong(id);
-            });
-        });
-    },
+    _bindSongs() { },
 
     cleanup() {
         (this._unsubs || []).forEach(u => u());

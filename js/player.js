@@ -90,10 +90,21 @@ class AudioPlayer {
             URL.revokeObjectURL(this._currentBlobUrl);
             this._currentBlobUrl = null;
         }
-        if (song.blob) {
+        if (song.blob && song.blob instanceof Blob) {
             const url = URL.createObjectURL(song.blob);
             this.audio.src = url;
             this._currentBlobUrl = url;
+        } else if (song.blob) {
+            try {
+                const reconstructed = new Blob([song.blob], { type: 'audio/mpeg' });
+                const url = URL.createObjectURL(reconstructed);
+                this.audio.src = url;
+                this._currentBlobUrl = url;
+            } catch (e) {
+                this.audio.src = '';
+                Store.showNotification('Failed to load audio data', 'error');
+                return;
+            }
         } else {
             this.audio.src = '';
             Store.showNotification('No audio data available', 'error');
@@ -180,6 +191,10 @@ class AudioPlayer {
         if (song) {
             await this.loadSong(song);
             this.play();
+            const path = window.location.pathname;
+            if (path === '/player' || path.endsWith('/player')) {
+                PlayerPage.render();
+            }
         }
     }
 

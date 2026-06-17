@@ -43,7 +43,7 @@ const SearchPage = {
                     <div class="space-y-1">
                         ${results.map(song => `
                             <div class="search-item flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer"
-                                style="hover:background:var(--surface-hover);" data-song-id="${song.id}"
+                                style="hover:background:var(--surface-hover); touch-action:manipulation;" data-song-id="${song.id}"
                                 onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background='transparent'">
                                 <div class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden" style="background:var(--surface);">
                                     ${song.thumbnail 
@@ -108,7 +108,8 @@ const SearchPage = {
         });
 
         document.querySelectorAll('.search-item').forEach(el => {
-            el.addEventListener('dblclick', (e) => { e.stopPropagation();
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
                 const id = el.dataset.songId;
                 if (id) this._playSong(id);
             });

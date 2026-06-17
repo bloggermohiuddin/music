@@ -358,38 +358,70 @@ const SettingsPage = {
         status.textContent = 'Checking for updates...';
 
         try {
-            const registration = await navigator.serviceWorker.getRegistration('/');
-            if (!registration) {
-                status.textContent = 'Service Worker not registered';
+            // Get current SW version
+            const currentVersion = await new Promise((resolve) => {
+                if (!navigator.serviceWorker.controller) { resolve(null); return; }
+                const channel = new MessageChannel();
+                channel.port1.onmessage = (e) => resolve(e.data);
+                channel.port1.onmessageerror = () => resolve(null);
+                navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+                setTimeout(() => resolve(null), 3000);
+            });
+
+            // Fetch fresh sw.js to check for newer version
+            const freshSW = await fetch('/sw.js?_=' + Date.now(), { cache: 'no-store' });
+            const freshText = await freshSW.text();
+            const versionMatch = freshText.match(/const APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+            const freshVersion = versionMatch ? versionMatch[1] : null;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            localStorage.setItem('update-last-check', timeStr);
+            document.getElementById('update-last-check').textContent = timeStr;
+
+            if (!currentVersion || !freshVersion) {
+                status.textContent = 'Could not determine version';
+                status.style.color = '#ef4444';
                 btn.disabled = false;
                 btn.textContent = 'Check for Updates';
                 return;
             }
 
-            await registration.update();
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-            if (registration.waiting) {
-                status.textContent = 'Update found! Applying...';
+            if (currentVersion !== freshVersion) {
+                status.textContent = 'Update found (v' + freshVersion + ')! Reloading...';
                 status.style.color = 'var(--primary)';
-                localStorage.setItem('update-last-check', timeStr);
-                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                // Force SW update
+                const registration = await navigator.serviceWorker.getRegistration('/');
+                if (registration) {
+                    await registration.update();
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                }
                 return;
             }
 
-            if (registration.installing) {
-                status.textContent = 'Update installing...';
-                status.style.color = 'var(--primary)';
-                localStorage.setItem('update-last-check', timeStr);
-                return;
+            // Same version — do standard update check in case byte differs
+            const registration = await navigator.serviceWorker.getRegistration('/');
+            if (registration) {
+                await registration.update();
+                if (registration.waiting) {
+                    status.textContent = 'Update found! Applying...';
+                    status.style.color = 'var(--primary)';
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    return;
+                }
+                if (registration.installing) {
+                    status.textContent = 'Update installing...';
+                    status.style.color = 'var(--primary)';
+                    return;
+                }
             }
 
-            status.textContent = 'Already up to date';
+            status.textContent = 'Up to date (v' + currentVersion + ')';
             status.style.color = '#22c55e';
-            localStorage.setItem('update-last-check', timeStr);
-            document.getElementById('update-last-check').textContent = timeStr;
         } catch (e) {
+            console.error('Update check failed:', e);
             status.textContent = 'Update check failed — try again';
             status.style.color = '#ef4444';
         }

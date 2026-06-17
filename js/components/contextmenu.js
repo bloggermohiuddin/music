@@ -20,9 +20,9 @@ const ContextMenu = {
         document.addEventListener('touchstart', (e) => {
             const songEl = e.target.closest('[data-song-id]');
             if (!songEl) return;
-            e.preventDefault();
             const touch = e.touches[0];
             this._longPressTimer = setTimeout(() => {
+                e.preventDefault();
                 this.show(touch.clientX, touch.clientY, songEl.dataset.songId);
             }, 400);
         }, { passive: false });

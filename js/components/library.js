@@ -91,7 +91,7 @@ const LibraryPage = {
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 ${songs.map(song => `
                     <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]" 
-                        style="background:var(--card-bg); border:1px solid ${this._selected.has(song.id) ? 'var(--primary)' : 'var(--border)'};" 
+                        style="background:var(--card-bg); border:1px solid ${this._selected.has(song.id) ? 'var(--primary)' : 'var(--border)'}; touch-action:manipulation;" 
                         data-song-id="${song.id}" data-grid-song="${song.id}">
                         <div class="relative mb-3">
                             ${this._selectMode ? `
@@ -133,7 +133,7 @@ const LibraryPage = {
                 </div>
                 ${songs.map((song, i) => `
                     <div class="song-list-item grid grid-cols-12 gap-3 px-4 py-2.5 items-center transition-all duration-200 cursor-pointer" 
-                        style="hover:background:var(--surface-hover); ${this._selected.has(song.id) ? 'background:var(--surface-active);' : ''}" data-song-id="${song.id}"
+                        style="hover:background:var(--surface-hover); ${this._selected.has(song.id) ? 'background:var(--surface-active);' : ''} touch-action:manipulation;" data-song-id="${song.id}"
                         onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background='${this._selected.has(song.id) ? 'var(--surface-active)' : 'transparent'}'">
                         <div class="col-span-1 text-sm flex items-center gap-2" style="color:var(--text-muted);">
                             ${this._selectMode ? `
@@ -321,23 +321,22 @@ const LibraryPage = {
         }
 
         document.querySelectorAll('.song-card, .song-list-item').forEach(el => {
-            el.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                if (this._selectMode) return;
-                const id = el.dataset.songId;
-                if (id) this._playSong(id);
-            });
             el.addEventListener('click', (e) => {
-                if (!this._selectMode) return;
-                if (e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
-                const id = el.dataset.songId;
-                if (!id) return;
-                if (this._selected.has(id)) {
-                    this._selected.delete(id);
+                if (this._selectMode) {
+                    if (e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
+                    const id = el.dataset.songId;
+                    if (!id) return;
+                    if (this._selected.has(id)) {
+                        this._selected.delete(id);
+                    } else {
+                        this._selected.add(id);
+                    }
+                    this.render();
                 } else {
-                    this._selected.add(id);
+                    if (e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
+                    const id = el.dataset.songId;
+                    if (id) this._playSong(id);
                 }
-                this.render();
             });
         });
 

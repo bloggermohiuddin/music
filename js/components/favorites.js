@@ -25,8 +25,8 @@ const FavoritesPage = {
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     ${favorites.map(song => `
                         <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]" 
-                            style="background:var(--card-bg); border:1px solid var(--border);" 
-                            data-song-id="${song.id}">
+                            style="background:var(--card-bg); border:1px solid var(--border); touch-action:manipulation;" 
+                            data-song-id="${song.id}" onclick="FavoritesPage._playSong('${song.id}')">
                             <div class="relative mb-3">
                                 <div class="aspect-square rounded-lg overflow-hidden" style="background:var(--surface);">
                                     ${song.thumbnail 
@@ -55,7 +55,8 @@ const FavoritesPage = {
         `;
 
         document.querySelectorAll('.song-card').forEach(el => {
-            el.addEventListener('dblclick', (e) => { e.stopPropagation();
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
                 const id = el.dataset.songId;
                 FavoritesPage._playSong(id);
             });

@@ -241,10 +241,6 @@ const DownloadsPage = {
     },
 
     async _downloadFromSearch(url, title, thumbnail, duration) {
-        if (this._isDownloading) return;
-        this._isDownloading = true;
-        this._updateButtonLoading(true);
-
         try {
             Store.showNotification('Fetching audio info...', 'info');
 
@@ -283,22 +279,12 @@ const DownloadsPage = {
                 duration: data.duration || 0
             }, downloadId, url, controller.signal);
 
-            this._isDownloading = false;
-            this._updateButtonLoading(false);
-
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
-            this._isDownloading = false;
-            this._updateButtonLoading(false);
         }
     },
 
     async _startYouTubeDownload(url) {
-        if (this._isDownloading) return;
-
-        this._isDownloading = true;
-        this._updateButtonLoading(true);
-
         try {
             Store.showNotification('Fetching audio info...', 'info');
 
@@ -331,30 +317,16 @@ const DownloadsPage = {
             this._updateQueue();
 
             await this._downloadAndStore(data, downloadId, url, controller.signal);
-            this._isDownloading = false;
-            this._updateButtonLoading(false);
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
-            this._isDownloading = false;
-            this._updateButtonLoading(false);
         }
     },
 
     _updateButtonLoading(loading) {
-        const btn = document.getElementById('yt-action-btn');
         const input = document.getElementById('yt-input');
         const uploadBtn = document.getElementById('upload-music-btn');
 
-        if (btn) {
-            btn.disabled = loading;
-            btn.style.background = loading ? 'var(--text-muted)' : 'var(--primary)';
-            btn.style.opacity = loading ? '0.7' : '1';
-            btn.style.cursor = loading ? 'not-allowed' : '';
-            btn.innerHTML = loading
-                ? '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'
-                : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Go';
-        }
         if (input) {
             input.disabled = loading;
             input.style.opacity = loading ? '0.5' : '1';
@@ -461,8 +433,6 @@ const DownloadsPage = {
     },
 
     cleanup() {
-        this._abortControllers.forEach(c => c.abort());
-        this._abortControllers.clear();
         this._unsubs.forEach(u => u());
         this._unsubs = [];
     }

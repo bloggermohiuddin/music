@@ -33,11 +33,12 @@
     console.log('Store refreshed');
 
     const root = document.getElementById('app');
+    root.style.cssText = 'height:100vh; overflow:hidden; position:relative;';
     root.innerHTML = `
         <div id="header" class="fixed top-0 left-0 right-0 z-50"></div>
         <div id="sidebar-backdrop" onclick="Store.set('sidebarOpen', false)"></div>
         <div id="sidebar"></div>
-        <main id="main-content" class="transition-all duration-300 ease-in-out pt-[60px]" style="margin-left:var(--sidebar-width, 240px);">
+        <main id="main-content" class="transition-all duration-300 ease-in-out pt-[60px]" style="margin-left:var(--sidebar-width, 240px); overflow-y:auto; height:100vh; -webkit-overflow-scrolling:touch;">
         </main>
         <div id="mini-player"></div>
         <div id="notification-container" class="fixed top-20 right-4 z-[100] space-y-2"></div>
@@ -256,7 +257,7 @@
                 backdrop.style.opacity = open ? '1' : '0';
                 backdrop.style.pointerEvents = open ? 'all' : 'none';
             }
-            document.body.style.overflow = open ? 'hidden' : '';
+            document.body.style.overflowY = open ? 'hidden' : 'auto';
         } else {
             sidebar.style.transform = 'none';
             sidebar.style.width = open ? '240px' : '0px';
