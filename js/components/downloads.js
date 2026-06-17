@@ -209,7 +209,7 @@ const DownloadsPage = {
         }
 
         try {
-            const response = await fetch('https://embed.dlsrv.online/api/search', {
+            const response = await fetch('https://bloggermahim.serv00.net/yt/search.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query })

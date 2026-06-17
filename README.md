@@ -38,7 +38,10 @@
 - **Batch select** — multi-select and delete multiple songs at once
 
 ### YouTube Download
-- Paste YouTube or YouTube Music links
+- **Unified input** — paste a YouTube link OR type a search term
+- **YouTube search** — search songs, artists, albums directly from the app
+- **One-tap download** — tap any search result to download instantly
+- Paste YouTube or YouTube Music links for direct download
 - API integration → direct MP3 → blob → IndexedDB
 - Thumbnail caching
 - Persistent offline storage
