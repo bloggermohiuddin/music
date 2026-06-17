@@ -41,7 +41,7 @@ const PlaylistsPage = {
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:var(--surface);">
                                     <svg class="w-6 h-6" style="color:var(--primary);" fill="currentColor" viewBox="0 0 24 24"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
                                 </div>
-                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div class="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                     <button onclick="event.stopPropagation(); PlaylistsPage._renamePlaylist('${p.id}')" class="p-1.5 rounded" style="color:var(--text-secondary); hover:color:var(--text);">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </button>
@@ -132,7 +132,7 @@ const PlaylistDetailPage = {
                         </button>
                         <div>
                             <h1 class="text-2xl md:text-3xl font-bold" style="color:var(--text);">${Utils.htmlEncode(playlist.name)}</h1>
-                            <p class="text-sm mt-1" style="color:var(--text-secondary);">${songs.length} song${songs.length !== 1 ? 's' : ''}</p>
+                            <p class="text-sm mt-1 playlist-song-count" style="color:var(--text-secondary);">${songs.length} song${songs.length !== 1 ? 's' : ''}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -147,58 +147,70 @@ const PlaylistDetailPage = {
                 </div>
 
                 ${songs.length === 0 ? `
-                <div class="text-center py-16">
+                <div class="playlist-empty-msg text-center py-16">
                     <p style="color:var(--text-muted);">This playlist is empty. Add some songs!</p>
                 </div>
                 ` : `
-                <div class="rounded-xl overflow-hidden" style="background:var(--card-bg); border:1px solid var(--border);">
-                    <div class="grid grid-cols-12 gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted); border-bottom:1px solid var(--border);">
-                        <div class="col-span-1">#</div>
-                        <div class="col-span-6">Title</div>
-                        <div class="col-span-3 hidden sm:block">Artist</div>
-                        <div class="col-span-1">Duration</div>
-                        <div class="col-span-1"></div>
-                    </div>
+                <div class="playlist-song-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     ${songs.map((song, i) => `
-                        <div class="grid grid-cols-12 gap-3 px-4 py-2.5 items-center transition-all duration-200 cursor-pointer"
-                            style="hover:background:var(--surface-hover);" data-song-id="${song.id}"
-                            onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background='transparent'">
-                            <div class="col-span-1 text-sm" style="color:var(--text-muted);">${i + 1}</div>
-                            <div class="col-span-6 flex items-center gap-3">
-                                <div class="w-10 h-10 rounded flex-shrink-0 overflow-hidden" style="background:var(--surface);">
+                        <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                            style="background:var(--card-bg); border:1px solid var(--border); touch-action:manipulation;"
+                            data-song-id="${song.id}" onclick="PlaylistDetailPage._playSong('${playlistId}', '${song.id}')">
+                            <div class="relative mb-3">
+                                <div class="aspect-square rounded-lg overflow-hidden" style="background:var(--surface);">
                                     ${song.thumbnail 
                                         ? `<img src="${song.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy">`
-                                        : `<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
+                                        : `<div class="w-full h-full flex items-center justify-center"><svg class="w-12 h-12" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
                                     }
                                 </div>
-                                <p class="text-sm font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(song.title)}</p>
-                            </div>
-                            <div class="col-span-3 text-sm hidden sm:block truncate" style="color:var(--text-secondary);">${Utils.htmlEncode(song.artist)}</div>
-                            <div class="col-span-1 text-sm" style="color:var(--text-muted);">${Utils.formatTime(song.duration)}</div>
-                            <div class="col-span-1">
-                                <button onclick="event.stopPropagation(); PlaylistDetailPage._removeSong('${playlistId}', '${song.id}')" class="p-1 rounded" style="color:#ef4444;">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                <button class="absolute bottom-2 right-2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 translate-y-0 sm:translate-y-2 sm:group-hover:translate-y-0"
+                                    style="background:var(--primary); color:white;" onclick="event.stopPropagation(); PlaylistDetailPage._playSong('${playlistId}', '${song.id}')">
+                                    <svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                </button>
+                                <button onclick="event.stopPropagation(); PlaylistDetailPage._removeSong('${playlistId}', '${song.id}')" class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300" style="background:rgba(0,0,0,0.6); color:white;">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
+                            <h3 class="text-sm font-semibold truncate" style="color:var(--text);">${Utils.htmlEncode(song.title)}</h3>
+                            <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary);">${Utils.htmlEncode(song.artist)}</p>
                         </div>
                     `).join('')}
                 </div>
                 `}
 
                 <div id="add-songs-panel" class="mt-4 hidden">
-                    <h3 class="text-lg font-semibold mb-3" style="color:var(--text);">Add songs</h3>
-                    <div class="space-y-1 max-h-60 overflow-y-auto">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold" style="color:var(--text);">Add songs</h3>
+                        <button onclick="document.getElementById('add-songs-panel').classList.add('hidden')" class="p-1.5 rounded" style="color:var(--text-muted);">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="relative mb-3">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" id="add-songs-search" placeholder="Search songs..." 
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none" 
+                            style="background:var(--input-bg); color:var(--text); border:1px solid var(--border);">
+                    </div>
+                    <div id="add-songs-list" class="space-y-1 max-h-60 overflow-y-auto">
                         ${allSongs.filter(s => !songs.find(ps => ps.id === s.id)).map(song => `
-                            <div class="flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all cursor-pointer"
-                                style="hover:background:var(--surface-hover);"
-                                onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background='transparent'">
-                                <span class="truncate" style="color:var(--text);">${Utils.htmlEncode(song.title)}</span>
-                                <button onclick="PlaylistDetailPage._addSong('${playlistId}', '${song.id}')" class="p-1.5 rounded" style="color:var(--primary);">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                </button>
+                            <div class="flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all cursor-pointer add-song-item"
+                                style="hover:background:var(--surface-hover); touch-action:manipulation;" 
+                                data-title="${Utils.htmlEncode(song.title).toLowerCase()}" data-artist="${Utils.htmlEncode(song.artist).toLowerCase()}"
+                                onclick="PlaylistDetailPage._addSong('${playlistId}', '${song.id}')">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-8 h-8 rounded flex-shrink-0 overflow-hidden" style="background:var(--surface);">
+                                        ${song.thumbnail 
+                                            ? `<img src="${song.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy">`
+                                            : `<div class="w-full h-full flex items-center justify-center"><svg class="w-4 h-4" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
+                                        }
+                                    </div>
+                                    <span class="truncate" style="color:var(--text);">${Utils.htmlEncode(song.title)}</span>
+                                </div>
+                                <svg class="w-4 h-4 flex-shrink-0" style="color:var(--primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             </div>
                         `).join('')}
                     </div>
+                    <p id="add-songs-empty" class="text-sm py-4 text-center hidden" style="color:var(--text-muted);">No songs found</p>
                 </div>
             </div>
         `;
@@ -214,14 +226,104 @@ const PlaylistDetailPage = {
 
         document.getElementById('add-to-playlist-btn')?.addEventListener('click', () => {
             const panel = document.getElementById('add-songs-panel');
-            if (panel) panel.classList.toggle('hidden');
+            if (panel) {
+                panel.classList.toggle('hidden');
+            }
+        });
+
+        document.getElementById('add-songs-search')?.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.add-song-item');
+            let visible = 0;
+            items.forEach(item => {
+                const match = !q || item.dataset.title.includes(q) || item.dataset.artist.includes(q);
+                item.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+            const empty = document.getElementById('add-songs-empty');
+            if (empty) empty.classList.toggle('hidden', visible > 0);
+        });
+    },
+
+    _playSong(playlistId, songId) {
+        DB.getPlaylistSongs(playlistId).then(songs => {
+            const idx = songs.findIndex(s => s.id === songId);
+            Store.setQueue(songs, idx >= 0 ? idx : 0);
+            Player.loadSong(songs[idx >= 0 ? idx : 0]);
+            Player.play();
+            Router.navigate('/player');
         });
     },
 
     async _addSong(playlistId, songId) {
         await DB.addToPlaylist(playlistId, songId);
+        const song = Store.get('songs').find(s => s.id === songId);
         Store.showNotification('Song added to playlist', 'success');
-        PlaylistDetailPage.render({ id: playlistId });
+
+        // Remove from add list with animation
+        const item = document.querySelector(`.add-song-item[onclick*="'${songId}'"]`);
+        if (item) {
+            item.style.transition = 'opacity 0.2s, transform 0.2s';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => item.remove(), 200);
+        }
+
+        // Add card to the grid
+        let grid = document.querySelector('.playlist-song-grid');
+        if (grid && song) {
+            const emptyMsg = grid.querySelector('.playlist-empty-msg');
+            if (emptyMsg) emptyMsg.remove();
+        } else if (song) {
+            // Playlist was empty — replace empty msg with grid
+            const emptyEl = document.querySelector('.playlist-empty-msg');
+            if (emptyEl) {
+                grid = document.createElement('div');
+                grid.className = 'playlist-song-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3';
+                emptyEl.replaceWith(grid);
+            }
+        }
+
+        if (grid && song) {
+
+            const card = document.createElement('div');
+            card.className = 'song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]';
+            card.style.cssText = 'background:var(--card-bg); border:1px solid var(--border); touch-action:manipulation; opacity:0; transform:scale(0.9);';
+            card.dataset.songId = song.id;
+            card.onclick = () => PlaylistDetailPage._playSong(playlistId, song.id);
+            card.innerHTML = `
+                <div class="relative mb-3">
+                    <div class="aspect-square rounded-lg overflow-hidden" style="background:var(--surface);">
+                        ${song.thumbnail 
+                            ? `<img src="${song.thumbnail}" alt="" class="w-full h-full object-cover" loading="lazy">`
+                            : `<div class="w-full h-full flex items-center justify-center"><svg class="w-12 h-12" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
+                        }
+                    </div>
+                    <button class="absolute bottom-2 right-2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300"
+                        style="background:var(--primary); color:white;" onclick="event.stopPropagation(); PlaylistDetailPage._playSong('${playlistId}', '${song.id}')">
+                        <svg class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button onclick="event.stopPropagation(); PlaylistDetailPage._removeSong('${playlistId}', '${song.id}')" class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300" style="background:rgba(0,0,0,0.6); color:white;">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <h3 class="text-sm font-semibold truncate" style="color:var(--text);">${Utils.htmlEncode(song.title)}</h3>
+                <p class="text-xs truncate mt-0.5" style="color:var(--text-secondary);">${Utils.htmlEncode(song.artist)}</p>
+            `;
+            grid.appendChild(card);
+            requestAnimationFrame(() => {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+            });
+        }
+
+        // Update count
+        const countEl = document.querySelector('.playlist-song-count');
+        if (countEl) {
+            const songs = await DB.getPlaylistSongs(playlistId);
+            countEl.textContent = `${songs.length} song${songs.length !== 1 ? 's' : ''}`;
+        }
     },
 
     async _removeSong(playlistId, songId) {

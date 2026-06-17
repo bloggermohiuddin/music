@@ -211,7 +211,7 @@ const ContextMenu = {
 
         box.querySelectorAll('button[data-pl-id]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                await DB.addSongToPlaylist(btn.dataset.plId, song.id);
+                await DB.addToPlaylist(btn.dataset.plId, song.id);
                 const pl = playlists.find(p => p.id === btn.dataset.plId);
                 Store.showNotification(`Added to "${pl?.name}"`, 'success');
                 overlay.remove();

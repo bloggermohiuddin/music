@@ -104,9 +104,13 @@ const DownloadsPage = {
     _renderQueue(downloads) {
         if (!downloads || downloads.length === 0) return '';
         const sorted = [...downloads].reverse();
+        const completedCount = sorted.filter(d => d.status === 'completed' || d.status === 'error').length;
         return `
             <div class="space-y-2">
-                <h2 class="text-lg font-semibold mb-3" style="color:var(--text);">Download Queue</h2>
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold" style="color:var(--text);">Download Queue</h2>
+                    ${completedCount > 0 ? `<button onclick="DownloadsPage._clearCompleted()" class="text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-105" style="background:var(--surface); color:#ef4444; border:1px solid var(--border);">Clear done (${completedCount})</button>` : ''}
+                </div>
                 ${sorted.map(d => {
                     const statusColors = { completed: 'var(--primary)', downloading: 'var(--accent)', queued: 'var(--text-muted)', error: '#ef4444', processing: '#f59e0b' };
                     const statusColor = statusColors[d.status] || 'var(--text-muted)';
@@ -120,19 +124,22 @@ const DownloadsPage = {
                                     ${d.progress ? ` · ${d.progress}%` : ''}
                                 </p>
                             </div>
-                            <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:${statusColor}20; color:${statusColor};">
-                                ${d.status === 'downloading' 
-                                    ? '<svg class="w-3 h-3 inline animate-spin mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' 
-                                    : ''}
-                                ${d.status}
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:${statusColor}20; color:${statusColor};">
+                                    ${d.status === 'downloading' 
+                                        ? '<svg class="w-3 h-3 inline animate-spin mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>' 
+                                        : ''}
+                                    ${d.status}
+                                </span>
+                                ${d.status !== 'downloading' ? `<button onclick="DownloadsPage._removeDownload('${d.id}')" class="p-1 rounded-lg transition-all hover:scale-110" style="color:var(--text-muted); hover:color:#ef4444;" title="Remove"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>` : ''}
+                            </div>
                         </div>
                         ${d.status === 'downloading' ? `
                         <div class="flex items-center gap-2 mt-2">
                             <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:var(--surface);">
                                 <div class="h-full rounded-full transition-all duration-300 ease-out" style="background:linear-gradient(90deg, var(--primary), var(--primary-hover)); width:${d.progress || 0}%;"></div>
                             </div>
-                            <button onclick="DownloadsPage._cancelDownload(${d.id})" class="p-1 rounded-lg flex-shrink-0 transition-all hover:scale-105" style="background:#ef4444; color:white;" title="Cancel">
+                            <button onclick="DownloadsPage._cancelDownload('${d.id}')" class="p-1 rounded-lg flex-shrink-0 transition-all hover:scale-105" style="background:#ef4444; color:white;" title="Cancel">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>` : ''}
@@ -241,6 +248,11 @@ const DownloadsPage = {
     },
 
     async _downloadFromSearch(url, title, thumbnail, duration) {
+        const btn = document.querySelector(`button[data-url="${url}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Loading...';
+        }
         try {
             Store.showNotification('Fetching audio info...', 'info');
 
@@ -281,6 +293,11 @@ const DownloadsPage = {
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Download';
+            }
         }
     },
 
@@ -430,6 +447,25 @@ const DownloadsPage = {
             Store.showNotification('Download failed', 'error');
             throw e;
         }
+    },
+
+    async _removeDownload(downloadId) {
+        await DB.delete('downloads', downloadId);
+        const downloads = await DB.getDownloadQueue();
+        Store.set('downloads', downloads);
+        this._updateQueue();
+    },
+
+    async _clearCompleted() {
+        const downloads = Store.get('downloads') || [];
+        const done = downloads.filter(d => d.status === 'completed' || d.status === 'error');
+        for (const d of done) {
+            await DB.delete('downloads', d.id);
+        }
+        const remaining = await DB.getDownloadQueue();
+        Store.set('downloads', remaining);
+        this._updateQueue();
+        Store.showNotification(`Cleared ${done.length} item${done.length !== 1 ? 's' : ''}`, 'success');
     },
 
     cleanup() {

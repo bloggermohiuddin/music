@@ -24,6 +24,7 @@
 - **SPA Architecture** — No page reloads. History API navigation with pushState. Browser refresh preserves current route.
 - **Offline-First** — All songs stored as blobs in IndexedDB. Service Worker caches everything. Works in airplane mode.
 - **Installable PWA** — Web App Manifest, Service Worker, standalone mode, lock screen controls.
+- **PWA Auto-Update** — Versioned caches with skip-waiting. Check for Updates in settings compares versions and reloads automatically.
 - **5 Themes** — Dark, Pure Black OLED, Light, Glassmorphism, Neon.
 
 ### Music Library
@@ -33,21 +34,24 @@
 - Duplicate detection
 - Grid / List / Artist view with sorting (date, title, artist, duration)
 - **Now playing indicator** — animated bars on currently playing song
-- **Edit song details** — rename title, artist, album, change thumbnail
+- **Edit song details** — rename title, artist, album, change thumbnail (upload from device or paste URL)
 - **Single song delete** — right-click context menu or long-press
 - **Batch select** — multi-select and delete multiple songs at once
+- **Real-time updates** — library, home, favorites, history update immediately after edit/delete
 
 ### YouTube Download
-- **Unified input** — paste a YouTube link OR type a search term
-- **YouTube search** — search songs, artists, albums directly from the app
-- **Grid results** — thumbnail, duration badge, title, one-tap download
+- **Unified input** — paste a YouTube link OR type a search term in one field
+- **YouTube search** — search songs, artists, albums directly from the app via PHP proxy (no CORS)
+- **Grid results** — thumbnail with duration badge, title, one-tap download button
 - **One-tap download** — tap any search result to download instantly
 - Paste YouTube or YouTube Music links for direct download
 - API integration → direct MP3 → blob → IndexedDB
 - Thumbnail caching
 - Persistent offline storage
-- Download queue with progress tracking (newest first)
-- **Cancel download** — abort any in-progress download
+- **Concurrent downloads** — multiple downloads run simultaneously
+- **Download queue** — newest first, progress tracking, cancel individual downloads
+- **Delete from queue** — X button on completed/failed items, "Clear done" bulk action
+- **Download survives navigation** — leaving the downloads page does not cancel active downloads
 
 ### Audio Player
 - Play / Pause / Stop / Seek / Volume / Mute
@@ -59,35 +63,59 @@
 - **Queue drag reorder** — drag songs to rearrange queue
 - **Sort queue A–Z** — sort queue alphabetically
 - **Play Next** — insert song right after current track
-- Waveform visualizer (Web Audio API)
+- **Auto-update player page** — player UI updates when song changes via auto-next
+- **Audio visualizer** — rounded bars with gradient, peak dots that slowly fall, 64 frequency bars
 - Crossfade (0–12 seconds)
 - Fade in / Fade out
 - **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown
 - Media Session API (lock screen controls)
 
+### Equalizer
+- 10-band graphic equalizer (60Hz – 16kHz)
+- Bass boost / Treble boost presets
+- Flat reset
+- Real-time Web Audio API BiquadFilter processing
+
 ### Playlist System
 - Create, rename, delete playlists
-- Add/remove songs
+- **Add songs with search** — searchable list with thumbnails, click row to add instantly
+- **Cards in playlist view** — songs shown as grid cards (same as library)
+- **Mobile-friendly actions** — play and remove buttons visible on mobile, hover on desktop
 - Play all
-- Song count tracking
+- Song count tracking (updates in real-time)
 
 ### Context Menu
 - Right-click (desktop) or long-press (mobile 400ms) any song
 - Play, Play Next, Add to Queue, Add to Playlist, Favorite, Share, Edit Details, Delete
+- **Edit modal** — live thumbnail preview, upload image from device, clear thumbnail
 
 ### Search
 - Real-time instant search by title, artist, album
 - Debounced input
 
+### Settings
+- Volume control
+- Crossfade duration
+- Default playback speed
+- Default repeat / shuffle
+- **10-band Equalizer** with presets
+- Keyboard shortcuts reference
+- **Check for Updates** — version comparison, auto-reload on new version
+- Cache clear
+- Export / Import full database as JSON backup
+- Reset all settings
+
 ### Storage Management
 - View total song count, size, thumbnails
 - Delete all songs
+- Cache clear
 - Export / Import full database as JSON backup
 
 ### Error Handling
 - Global error boundary catches uncaught exceptions
 - Unhandled promise rejection tracking
 - Route-level try-catch prevents full app crashes
+- Blob integrity check — reconstructs corrupted blobs from IndexedDB
 
 ### Keyboard Shortcuts
 
@@ -113,11 +141,11 @@
 | Tailwind CSS (CDN) | Styling |
 | Vanilla JS (ES6+) | Logic |
 | IndexedDB | Large blob storage |
-| Service Worker | Offline caching |
+| Service Worker | Offline caching + versioned updates |
 | Cache API | Static asset caching |
 | Web App Manifest | PWA installation |
 | History API | SPA routing |
-| Web Audio API | Audio playback + visualization |
+| Web Audio API | Audio playback + visualizer + equalizer |
 | Media Session API | Lock screen controls |
 | Web Workers | Background tasks |
 
@@ -128,18 +156,21 @@
 ```
 ├── index.html              # Entry point with Tailwind CSS
 ├── manifest.json           # PWA manifest
-├── sw.js                   # Service Worker
+├── sw.js                   # Service Worker (versioned caches)
 ├── .htaccess               # Apache SPA rewrite
+├── php/
+│   ├── api.php             # YouTube download API proxy
+│   └── search.php          # YouTube search API proxy (CORS)
 ├── icons/
 │   ├── icon.png            # App icon (PNG)
 │   ├── icon.svg            # App icon (SVG)
 │   └── logo-full.png       # Full logo
 └── js/
-    ├── app.js              # Bootstrap, init, keyboard shortcuts
+    ├── app.js              # Bootstrap, init, SW registration, keyboard shortcuts
     ├── router.js           # History API SPA router
     ├── store.js            # Observable state management
     ├── db.js               # IndexedDB wrapper (7 stores)
-    ├── player.js           # Audio player + Web Audio API
+    ├── player.js           # Audio player + Web Audio API + equalizer
     ├── theme.js            # Theme engine (5 themes)
     ├── utils.js            # Utility functions + modal dialogs
     ├── worker.js           # Web Worker
@@ -150,13 +181,13 @@
         ├── home.js         # Dashboard page
         ├── library.js      # Music library (grid/list/artist, batch select)
         ├── search.js       # Search page
-        ├── player.js       # Fullscreen player page
-        ├── downloads.js    # YouTube download + upload
-        ├── playlists.js    # Playlist management
-        ├── settings.js     # Settings page
+        ├── player.js       # Fullscreen player page + visualizer
+        ├── downloads.js    # YouTube search/download + upload
+        ├── playlists.js    # Playlist management + add songs with search
+        ├── settings.js     # Settings page + equalizer + update checker
         ├── history.js      # Recently played page
         ├── favorites.js    # Favorites page
-        └── contextmenu.js  # Right-click/long-press context menu
+        └── contextmenu.js  # Right-click/long-press context menu + edit modal
 ```
 
 ---
@@ -199,12 +230,22 @@ User selects file → FileReader → extractMetadata() → Blob → IndexedDB (s
 
 ### YouTube Download Flow
 ```
-User pastes URL → POST to API → get MP3 link → fetch() → Blob → IndexedDB (permanent)
+User pastes URL or types search → POST to PHP proxy → get MP3 link → fetch() → Blob → IndexedDB (permanent)
+```
+
+### YouTube Search Flow
+```
+User types search term → POST to search.php → embed.dlsrv.online/api/search → grid results with thumbnails
 ```
 
 ### Offline Playback
 ```
 Song blob in IndexedDB → URL.createObjectURL() → HTML5 Audio element → plays offline
+```
+
+### PWA Update Flow
+```
+Settings → Check for Updates → fetch sw.js with cache-bust → compare APP_VERSION → if different → skipWaiting + reload
 ```
 
 ### Data Persistence
@@ -238,6 +279,30 @@ Response:
 }
 ```
 
+### YouTube Search Endpoint
+```
+POST https://bloggermahim.serv00.net/yt/search.php
+Content-Type: application/json
+
+{
+  "query": "search term"
+}
+```
+
+Response:
+```json
+{
+  "data": [
+    {
+      "title": "Song Title",
+      "url": "https://youtube.com/watch?v=...",
+      "imgSrc": "https://...",
+      "duration": "3:45"
+    }
+  ]
+}
+```
+
 ---
 
 ## Themes
@@ -263,11 +328,9 @@ Contributions are welcome! Here's how you can help:
 5. **Open** a Pull Request
 
 ### Ideas for Contributions
-- Equalizer with preset bands
 - Lyrics display (synced LRC files)
 - Drag-and-drop reorder in playlists
 - Import playlists from CSV/JSON
-- WaveSurfer.js integration for better waveforms
 - PWA offline indicator banner
 - AirPlay / Chromecast support
 - Keyboard shortcut customization
