@@ -175,6 +175,10 @@ const ContextMenu = {
                     await Store.loadFavorites();
                     await Store.loadHistory();
                     Store.showNotification('Song deleted', 'success');
+                    const path = window.location.pathname;
+                    if (path === '/' || path === '/library' || path === '/favorites' || path === '/history') {
+                        Router.navigate(path, true);
+                    }
                 }
                 break;
         }
@@ -325,6 +329,10 @@ const ContextMenu = {
             await Store.loadFavorites();
             Store.showNotification('Song updated', 'success');
             overlay.remove();
+            const path = window.location.pathname;
+            if (path === '/' || path === '/library' || path === '/favorites') {
+                Router.navigate(path, true);
+            }
         });
 
         overlay.addEventListener('click', (e) => {

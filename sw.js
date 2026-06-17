@@ -31,7 +31,9 @@ const STATIC_URLS = [
     '/js/components/favorites.js',
     '/js/components/miniplayer.js',
     '/js/components/contextmenu.js',
-    '/icons/icon.svg'
+    '/icons/icon.svg',
+    '/icons/icon.png',
+    '/icons/logo-full.png'
 ];
 
 self.addEventListener('install', (event) => {
