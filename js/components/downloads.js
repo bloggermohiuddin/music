@@ -103,10 +103,11 @@ const DownloadsPage = {
 
     _renderQueue(downloads) {
         if (!downloads || downloads.length === 0) return '';
+        const sorted = [...downloads].reverse();
         return `
             <div class="space-y-2">
                 <h2 class="text-lg font-semibold mb-3" style="color:var(--text);">Download Queue</h2>
-                ${downloads.map(d => {
+                ${sorted.map(d => {
                     const statusColors = { completed: 'var(--primary)', downloading: 'var(--accent)', queued: 'var(--text-muted)', error: '#ef4444', processing: '#f59e0b' };
                     const statusColor = statusColors[d.status] || 'var(--text-muted)';
                     return `

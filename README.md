@@ -40,12 +40,13 @@
 ### YouTube Download
 - **Unified input** — paste a YouTube link OR type a search term
 - **YouTube search** — search songs, artists, albums directly from the app
+- **Grid results** — thumbnail, duration badge, title, one-tap download
 - **One-tap download** — tap any search result to download instantly
 - Paste YouTube or YouTube Music links for direct download
 - API integration → direct MP3 → blob → IndexedDB
 - Thumbnail caching
 - Persistent offline storage
-- Download queue with progress tracking
+- Download queue with progress tracking (newest first)
 - **Cancel download** — abort any in-progress download
 
 ### Audio Player
