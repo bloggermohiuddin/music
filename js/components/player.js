@@ -233,28 +233,66 @@ const PlayerPage = {
         const canvas = document.getElementById('waveform-canvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const draw = () => {
+        const peaks = new Float32Array(128).fill(0);
+        let lastTime = 0;
+
+        const draw = (time) => {
+            const dt = Math.min((time - lastTime) / 1000, 0.1);
+            lastTime = time;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             const data = Player.getWaveformData();
+            const isPlaying = Store.get('isPlaying');
             if (data && data.length > 0) {
-                const barCount = data.length;
-                const barWidth = canvas.width / barCount;
+                const barCount = Math.min(data.length, 64);
+                const gap = 3;
+                const barWidth = (canvas.width - gap * barCount) / barCount;
                 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#1db954';
-                data.forEach((value, i) => {
-                    const h = (value / 255) * canvas.height * 0.8;
-                    const x = i * barWidth;
+
+                for (let i = 0; i < barCount; i++) {
+                    const value = data[i] || 0;
+                    const h = (value / 255) * canvas.height * 0.85;
+
+                    if (h > peaks[i]) peaks[i] = h;
+                    else peaks[i] = Math.max(0, peaks[i] - dt * 200);
+
+                    const x = i * (barWidth + gap);
+                    const radius = Math.min(barWidth / 2, 4);
+
                     const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - h);
-                    gradient.addColorStop(0, primary + '40');
+                    gradient.addColorStop(0, primary + '30');
+                    gradient.addColorStop(0.5, primary + 'aa');
                     gradient.addColorStop(1, primary);
                     ctx.fillStyle = gradient;
-                    ctx.fillRect(x + 1, canvas.height - h, barWidth - 2, h);
-                });
+
+                    if (barWidth > 2 * radius) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + radius, canvas.height - h);
+                        ctx.lineTo(x + barWidth - radius, canvas.height - h);
+                        ctx.quadraticCurveTo(x + barWidth, canvas.height - h, x + barWidth, canvas.height - h + radius);
+                        ctx.lineTo(x + barWidth, canvas.height);
+                        ctx.lineTo(x, canvas.height);
+                        ctx.lineTo(x, canvas.height - h + radius);
+                        ctx.quadraticCurveTo(x, canvas.height - h, x + radius, canvas.height - h);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(x, canvas.height - h, barWidth, h);
+                    }
+
+                    if (peaks[i] > 4) {
+                        ctx.fillStyle = primary;
+                        ctx.fillRect(x, canvas.height - peaks[i] - 3, barWidth, 2);
+                    }
+                }
             }
-            if (!document.hidden) {
+
+            if (!document.hidden && isPlaying) {
+                this._waveformFrame = requestAnimationFrame(draw);
+            } else if (!isPlaying) {
                 this._waveformFrame = requestAnimationFrame(draw);
             }
         };
-        draw();
+        this._waveformFrame = requestAnimationFrame(draw);
     },
 
     updatePlayButton() {
