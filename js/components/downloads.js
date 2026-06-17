@@ -22,44 +22,25 @@ const DownloadsPage = {
 
                 <div class="mb-6">
                     <div class="p-4 md:p-6 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
-                        <label class="text-sm font-medium mb-2 block" style="color:var(--text);">Search YouTube</label>
                         <div class="flex gap-2">
-                            <input type="text" id="yt-search-input" placeholder="Search songs, artists, albums..."
+                            <input type="text" id="yt-input" placeholder="Paste YouTube link or search songs..."
+                                ${disabled ? 'disabled' : ''}
                                 class="flex-1 px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2"
-                                style="background:var(--input-bg); color:var(--text); border:1px solid var(--border);">
-                            <button id="yt-search-btn" 
+                                style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); ${disabled ? 'opacity:0.5; cursor:not-allowed;' : ''}">
+                            <button id="yt-action-btn" 
+                                ${disabled ? 'disabled' : ''}
                                 class="px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2" 
-                                style="background:var(--primary); color:white; hover:scale-105;">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                                Search
+                                style="background:${disabled ? 'var(--text-muted)' : 'var(--primary)'}; color:white; ${disabled ? 'opacity:0.7; cursor:not-allowed;' : 'hover:scale-105;'}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                Go
                             </button>
                         </div>
+                        <p class="text-xs mt-2" style="color:var(--text-muted);">Paste a YouTube/YouTube Music link to download, or type to search</p>
                     </div>
                 </div>
 
                 <div id="yt-search-results" class="mb-6">
                     ${this._searchResults.length > 0 ? this._renderSearchResults() : ''}
-                </div>
-
-                <div class="mb-6">
-                    <div class="p-4 md:p-6 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
-                        <label class="text-sm font-medium mb-2 block" style="color:var(--text);">Or paste a direct link</label>
-                        <div class="flex gap-2">
-                            <input type="url" id="yt-url-input" placeholder="https://youtube.com/watch?v=..."
-                                ${disabled ? 'disabled' : ''}
-                                class="flex-1 px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2"
-                                style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); ${disabled ? 'opacity:0.5; cursor:not-allowed;' : ''}">
-                            <button id="yt-download-btn" 
-                                ${disabled ? 'disabled' : ''}
-                                class="px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2" 
-                                style="background:${disabled ? 'var(--text-muted)' : 'var(--primary)'}; color:white; ${disabled ? 'opacity:0.7; cursor:not-allowed;' : 'hover:scale-105;'}">
-                                ${disabled 
-                                    ? '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...'
-                                    : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Download'}
-                            </button>
-                        </div>
-                        <p class="text-xs mt-2" style="color:var(--text-muted);">Paste a YouTube or YouTube Music link to download audio</p>
-                    </div>
                 </div>
 
                 <div class="mb-6">
@@ -164,9 +145,9 @@ const DownloadsPage = {
     },
 
     _bindEvents() {
-        document.getElementById('yt-search-btn')?.addEventListener('click', () => this._searchYouTube());
-        document.getElementById('yt-search-input')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this._searchYouTube();
+        document.getElementById('yt-action-btn')?.addEventListener('click', () => this._handleInput());
+        document.getElementById('yt-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this._handleInput();
         });
 
         document.addEventListener('click', (e) => {
@@ -184,14 +165,6 @@ const DownloadsPage = {
             );
         });
 
-        document.getElementById('yt-download-btn')?.addEventListener('click', () => {
-            if (!this._isDownloading) this._startYouTubeDownload();
-        });
-
-        document.getElementById('yt-url-input')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !this._isDownloading) this._startYouTubeDownload();
-        });
-
         const uploadBtn = document.getElementById('upload-music-btn');
         const uploadInput = document.getElementById('upload-files-input');
         if (uploadBtn && uploadInput) {
@@ -205,15 +178,31 @@ const DownloadsPage = {
         }
     },
 
-    async _searchYouTube() {
-        const input = document.getElementById('yt-search-input');
-        const query = input?.value.trim();
-        if (!query) {
-            Store.showNotification('Please enter a search term', 'warning');
+    _isURL(str) {
+        try {
+            const u = new URL(str);
+            return u.protocol === 'http:' || u.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    },
+
+    _handleInput() {
+        const input = document.getElementById('yt-input');
+        const value = input?.value.trim();
+        if (!value) {
+            Store.showNotification('Enter a search term or YouTube link', 'warning');
             return;
         }
+        if (this._isURL(value)) {
+            this._startYouTubeDownload(value);
+        } else {
+            this._searchYouTube(value);
+        }
+    },
 
-        const btn = document.getElementById('yt-search-btn');
+    async _searchYouTube(query) {
+        const btn = document.getElementById('yt-action-btn');
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
@@ -243,7 +232,7 @@ const DownloadsPage = {
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Search';
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Go';
             }
         }
     },
@@ -252,9 +241,6 @@ const DownloadsPage = {
         if (this._isDownloading) return;
         this._isDownloading = true;
         this._updateButtonLoading(true);
-
-        const input = document.getElementById('yt-url-input');
-        if (input) input.value = url;
 
         try {
             Store.showNotification('Fetching audio info...', 'info');
@@ -296,7 +282,6 @@ const DownloadsPage = {
 
             this._isDownloading = false;
             this._updateButtonLoading(false);
-            if (input) input.value = '';
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
@@ -305,15 +290,8 @@ const DownloadsPage = {
         }
     },
 
-    async _startYouTubeDownload() {
+    async _startYouTubeDownload(url) {
         if (this._isDownloading) return;
-
-        const input = document.getElementById('yt-url-input');
-        const url = input?.value.trim();
-        if (!url) {
-            Store.showNotification('Please enter a YouTube URL', 'warning');
-            return;
-        }
 
         this._isDownloading = true;
         this._updateButtonLoading(true);
@@ -352,7 +330,6 @@ const DownloadsPage = {
             await this._downloadAndStore(data, downloadId, url, controller.signal);
             this._isDownloading = false;
             this._updateButtonLoading(false);
-            if (input) input.value = '';
 
         } catch (e) {
             Store.showNotification(`Download failed: ${e.message}`, 'error');
@@ -362,8 +339,8 @@ const DownloadsPage = {
     },
 
     _updateButtonLoading(loading) {
-        const btn = document.getElementById('yt-download-btn');
-        const input = document.getElementById('yt-url-input');
+        const btn = document.getElementById('yt-action-btn');
+        const input = document.getElementById('yt-input');
         const uploadBtn = document.getElementById('upload-music-btn');
 
         if (btn) {
@@ -372,8 +349,8 @@ const DownloadsPage = {
             btn.style.opacity = loading ? '0.7' : '1';
             btn.style.cursor = loading ? 'not-allowed' : '';
             btn.innerHTML = loading
-                ? '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...'
-                : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Download';
+                ? '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'
+                : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Go';
         }
         if (input) {
             input.disabled = loading;
@@ -438,7 +415,6 @@ const DownloadsPage = {
             }
 
             const blob = new Blob(chunks, { type: 'audio/mpeg' });
-
             const thumbnail = data.thumbnail || null;
 
             await DB.addSong({
