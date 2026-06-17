@@ -9,6 +9,7 @@ const SettingsPage = {
         const crossfade = Store.get('crossfade');
         const storageInfo = Store.get('storageInfo');
         const eq = Store.get('equalizer');
+        const fx = Store.get('effects') || { reverb: 0, echo: 0, bassBoost: 0 };
         const repeat = Store.get('repeat');
         const shuffle = Store.get('shuffle');
 
@@ -133,6 +134,34 @@ const SettingsPage = {
                     </section>
 
                     <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Audio Effects</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-sm" style="color:var(--text);">Reverb</label>
+                                    <span class="text-xs" style="color:var(--text-muted);" id="fx-reverb-val">${fx.reverb}%</span>
+                                </div>
+                                <input type="range" min="0" max="100" value="${fx.reverb}" id="fx-reverb" class="w-full h-1.5 rounded-lg appearance-none cursor-pointer" style="background:var(--surface); accent-color:var(--primary);">
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-sm" style="color:var(--text);">Echo</label>
+                                    <span class="text-xs" style="color:var(--text-muted);" id="fx-echo-val">${fx.echo}%</span>
+                                </div>
+                                <input type="range" min="0" max="100" value="${fx.echo}" id="fx-echo" class="w-full h-1.5 rounded-lg appearance-none cursor-pointer" style="background:var(--surface); accent-color:var(--primary);">
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-sm" style="color:var(--text);">Bass Boost</label>
+                                    <span class="text-xs" style="color:var(--text-muted);" id="fx-bass-val">${fx.bassBoost}%</span>
+                                </div>
+                                <input type="range" min="0" max="100" value="${fx.bassBoost}" id="fx-bass" class="w-full h-1.5 rounded-lg appearance-none cursor-pointer" style="background:var(--surface); accent-color:var(--primary);">
+                            </div>
+                            <button id="fx-reset" class="text-xs px-2.5 py-1 rounded-lg transition-all" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Reset All Effects</button>
+                        </div>
+                    </section>
+
+                    <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
                         <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Keyboard Shortcuts</h2>
                         <div class="grid grid-cols-2 gap-2 text-sm" style="color:var(--text-secondary);">
                             <div class="flex justify-between"><span>Space</span><span style="color:var(--text);">Play/Pause</span></div>
@@ -144,6 +173,13 @@ const SettingsPage = {
                             <div class="flex justify-between"><span>P</span><span style="color:var(--text);">Previous track</span></div>
                             <div class="flex justify-between"><span>M</span><span style="color:var(--text);">Mute toggle</span></div>
                             <div class="flex justify-between"><span>F</span><span style="color:var(--text);">Fullscreen</span></div>
+                        </div>
+                    </section>
+
+                    <section class="p-5 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <h2 class="text-lg font-semibold mb-4" style="color:var(--text);">Listening Stats</h2>
+                        <div id="stats-content" class="space-y-4">
+                            <p class="text-sm" style="color:var(--text-muted);">Loading stats...</p>
                         </div>
                     </section>
 
@@ -176,6 +212,7 @@ const SettingsPage = {
         `;
 
         this._bindEvents();
+        this._loadStats();
     },
 
     _bindEvents() {
@@ -272,6 +309,131 @@ const SettingsPage = {
         if (lastCheckEl && lastCheck) lastCheckEl.textContent = lastCheck;
 
         document.getElementById('check-update-btn')?.addEventListener('click', () => SettingsPage._checkUpdate());
+
+        // Effects
+        const fxSliders = [
+            { id: 'fx-reverb', key: 'reverb', valId: 'fx-reverb-val' },
+            { id: 'fx-echo', key: 'echo', valId: 'fx-echo-val' },
+            { id: 'fx-bass', key: 'bassBoost', valId: 'fx-bass-val' }
+        ];
+        fxSliders.forEach(({ id, key, valId }) => {
+            document.getElementById(id)?.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                const fx = Store.get('effects');
+                fx[key] = val;
+                Store.set('effects', { ...fx });
+                document.getElementById(valId).textContent = val + '%';
+                Player.setEffects();
+            });
+        });
+        document.getElementById('fx-reset')?.addEventListener('click', () => {
+            Store.set('effects', { reverb: 0, echo: 0, bassBoost: 0 });
+            Player.setEffects();
+            this.render();
+        });
+    },
+
+    async _loadStats() {
+        const container = document.getElementById('stats-content');
+        if (!container) return;
+
+        try {
+            const history = Store.get('history') || [];
+            const songs = Store.get('songs') || [];
+
+            // Total listening time (estimate from history play counts * durations)
+            let totalSeconds = 0;
+            const artistCounts = {};
+            const dayCounts = {};
+            const now = Date.now();
+            const weekMs = 7 * 24 * 60 * 60 * 1000;
+
+            for (const h of history) {
+                const song = songs.find(s => s.id === h.song_id);
+                if (!song) continue;
+                const dur = song.duration || 0;
+                totalSeconds += dur;
+
+                // Artist counts
+                const artist = song.artist || 'Unknown';
+                artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+
+                // Day counts (last 7 days)
+                if (h.last_played && (now - h.last_played) < weekMs) {
+                    const date = new Date(h.last_played);
+                    const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    dayCounts[day] = (dayCounts[day] || 0) + 1;
+                }
+            }
+
+            // Format total time
+            const hours = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+            // Top artists
+            const topArtists = Object.entries(artistCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            const maxCount = topArtists.length > 0 ? topArtists[0][1] : 1;
+
+            // Day order
+            const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dayData = dayOrder.map(d => ({ day: d, count: dayCounts[d] || 0 }));
+            const maxDay = Math.max(...dayData.map(d => d.count), 1);
+
+            container.innerHTML = `
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="p-3 rounded-lg" style="background:var(--surface);">
+                        <p class="text-2xl font-bold" style="color:var(--primary);">${history.length}</p>
+                        <p class="text-xs" style="color:var(--text-muted);">Songs Played</p>
+                    </div>
+                    <div class="p-3 rounded-lg" style="background:var(--surface);">
+                        <p class="text-2xl font-bold" style="color:var(--primary);">${timeStr}</p>
+                        <p class="text-xs" style="color:var(--text-muted);">Listen Time</p>
+                    </div>
+                    <div class="p-3 rounded-lg" style="background:var(--surface);">
+                        <p class="text-2xl font-bold" style="color:var(--primary);">${Object.keys(artistCounts).length}</p>
+                        <p class="text-xs" style="color:var(--text-muted);">Artists</p>
+                    </div>
+                </div>
+
+                ${topArtists.length > 0 ? `
+                <div>
+                    <p class="text-xs font-semibold mb-2 uppercase tracking-wider" style="color:var(--text-muted);">Top Artists</p>
+                    <div class="space-y-2">
+                        ${topArtists.map(([name, count]) => `
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs w-20 truncate" style="color:var(--text-secondary);">${Utils.htmlEncode(name)}</span>
+                                <div class="flex-1 h-4 rounded overflow-hidden" style="background:var(--surface);">
+                                    <div class="h-full rounded transition-all duration-500" style="background:var(--primary); width:${(count / maxCount) * 100}%;"></div>
+                                </div>
+                                <span class="text-xs w-6 text-right" style="color:var(--text-muted);">${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${history.length > 0 ? `
+                <div>
+                    <p class="text-xs font-semibold mb-2 uppercase tracking-wider" style="color:var(--text-muted);">Last 7 Days</p>
+                    <div class="flex items-end gap-1.5" style="height:80px;">
+                        ${dayData.map(d => `
+                            <div class="flex-1 flex flex-col items-center gap-1">
+                                <div class="w-full rounded-t transition-all duration-500" style="background:var(--primary); height:${d.count > 0 ? Math.max((d.count / maxDay) * 60, 4) : 0}px; min-height:${d.count > 0 ? '4px' : '0'};"></div>
+                                <span class="text-[10px]" style="color:var(--text-muted);">${d.day}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${history.length === 0 ? '<p class="text-sm text-center py-4" style="color:var(--text-muted);">Play some songs to see your stats</p>' : ''}
+            `;
+        } catch (e) {
+            container.innerHTML = '<p class="text-sm" style="color:var(--text-muted);">Could not load stats</p>';
+        }
     },
 
     _setTheme(key) {
@@ -338,10 +500,12 @@ const SettingsPage = {
         Store.set('repeat', 'none');
         Store.set('shuffle', false);
         Store.set('equalizer', { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 });
+        Store.set('effects', { reverb: 0, echo: 0, bassBoost: 0 });
         Player.setVolume(0.8);
         Player.setPlaybackSpeed(1);
         Player.setCrossfade(0);
         Player.updateEqualizer();
+        Player.setEffects();
         this.render();
         Store.showNotification('Settings reset to defaults', 'success');
     },

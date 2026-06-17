@@ -63,13 +63,13 @@ const FavoritesPage = {
         });
     },
 
-    _playSong(songId) {
+    async _playSong(songId) {
         const song = Store.get('favorites').find(s => s.id === songId);
         if (!song) return;
         const queue = Store.get('favorites');
         const idx = queue.findIndex(s => s.id === songId);
         Store.setQueue(queue, idx);
-        Player.loadSong(song);
+        await Player.loadSong(song);
         Player.play();
         Router.navigate('/player');
     },

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
@@ -33,7 +33,8 @@ const STATIC_URLS = [
     '/js/components/contextmenu.js',
     '/icons/icon.svg',
     '/icons/icon.png',
-    '/icons/logo-full.png'
+    '/icons/logo-full.png',
+    '/widget.html'
 ];
 
 self.addEventListener('install', (event) => {

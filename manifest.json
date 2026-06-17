@@ -70,5 +70,25 @@
   },
   "edge_side_panel": {
     "preferred_width": 400
-  }
+  },
+  "widgets": [
+    {
+      "name": "Now Playing",
+      "description": "Shows currently playing song with controls",
+      "tag": "now-playing-widget",
+      "ms_ac_template": "widget/widget.json",
+      "data": "/widget/data.json",
+      "screenshots": [],
+      "icons": [
+        { "src": "/icons/icon.png", "sizes": "192x192", "type": "image/png" }
+      ],
+      "backgrounds": [
+        { "src": "/icons/icon.png", "sizes": "192x192", "type": "image/png" }
+      ],
+      "display": "standalone",
+      "orientation": "any",
+      "screenshots": [],
+      "launch": "/?widget=now-playing"
+    }
+  ]
 }

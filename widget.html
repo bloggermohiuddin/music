@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1db954">
+    <title>Audivo - Now Playing</title>
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+        .widget {
+            width: 100%;
+            max-width: 340px;
+            padding: 20px;
+            text-align: center;
+        }
+        .artwork {
+            width: 160px;
+            height: 160px;
+            border-radius: 16px;
+            margin: 0 auto 16px;
+            background: #1a1a2e;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .artwork img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .artwork-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #333;
+        }
+        .info { margin-bottom: 20px; }
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .artist {
+            font-size: 14px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+        .controls button {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .controls button:active {
+            background: rgba(255,255,255,0.2);
+        }
+        .play-btn {
+            width: 56px;
+            height: 56px;
+            background: #1db954 !important;
+            border-radius: 50%;
+        }
+        .play-btn:hover {
+            background: #1ed760 !important;
+        }
+        .progress {
+            width: 100%;
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .progress input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #333;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .progress input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #1db954;
+            cursor: pointer;
+        }
+        .progress .time {
+            font-size: 11px;
+            color: #666;
+            min-width: 36px;
+            text-align: center;
+        }
+        .no-song {
+            color: #555;
+            font-size: 14px;
+        }
+        .open-app {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #1db954;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .open-app:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="widget" id="widget">
+        <div class="no-song" id="no-song">No song playing</div>
+        <div id="player-ui" style="display:none;">
+            <div class="artwork">
+                <img id="artwork" src="" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="artwork-placeholder" style="display:none;">&#9835;</div>
+            </div>
+            <div class="info">
+                <div class="title" id="title">-</div>
+                <div class="artist" id="artist">-</div>
+            </div>
+            <div class="controls">
+                <button id="prev-btn" title="Previous">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <button id="play-btn" class="play-btn" title="Play/Pause">
+                    <svg id="play-icon" width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="pause-icon" width="28" height="28" fill="currentColor" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <button id="next-btn" title="Next">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+            </div>
+            <div class="progress">
+                <span class="time" id="current-time">0:00</span>
+                <input type="range" id="seek-bar" min="0" max="100" value="0">
+                <span class="time" id="duration">0:00</span>
+            </div>
+        </div>
+        <a class="open-app" href="/" id="open-app">Open Audivo</a>
+    </div>
+
+    <script>
+        const channel = new BroadcastChannel('audivo-widget');
+        const $ = id => document.getElementById(id);
+
+        let playing = false;
+
+        function formatTime(s) {
+            if (!s || isNaN(s)) return '0:00';
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return m + ':' + (sec < 10 ? '0' : '') + sec;
+        }
+
+        function updateUI(data) {
+            if (!data || !data.title) {
+                $('no-song').style.display = '';
+                $('player-ui').style.display = 'none';
+                return;
+            }
+            $('no-song').style.display = 'none';
+            $('player-ui').style.display = '';
+            $('title').textContent = data.title || '-';
+            $('artist').textContent = data.artist || 'Unknown';
+            if (data.thumbnail) {
+                $('artwork').src = data.thumbnail;
+                $('artwork').style.display = '';
+                $('artwork').nextElementSibling.style.display = 'none';
+            }
+            playing = data.playing;
+            $('play-icon').style.display = playing ? 'none' : '';
+            $('pause-icon').style.display = playing ? '' : 'none';
+            if (data.duration) {
+                $('seek-bar').max = data.duration;
+                $('duration').textContent = formatTime(data.duration);
+            }
+            if (data.currentTime !== undefined) {
+                $('seek-bar').value = data.currentTime;
+                $('current-time').textContent = formatTime(data.currentTime);
+            }
+        }
+
+        channel.onmessage = (e) => {
+            if (e.data && e.data.type === 'state-update') {
+                updateUI(e.data);
+            }
+        };
+
+        $('play-btn').addEventListener('click', () => {
+            channel.postMessage({ type: 'command', action: playing ? 'pause' : 'play' });
+        });
+        $('prev-btn').addEventListener('click', () => {
+            channel.postMessage({ type: 'command', action: 'prev' });
+        });
+        $('next-btn').addEventListener('click', () => {
+            channel.postMessage({ type: 'command', action: 'next' });
+        });
+        $('seek-bar').addEventListener('input', (e) => {
+            channel.postMessage({ type: 'command', action: 'seek', time: parseFloat(e.target.value) });
+        });
+        $('open-app').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.open('/', '_blank');
+        });
+
+        // Request current state from main app
+        channel.postMessage({ type: 'request-state' });
+    </script>
+</body>
+</html>

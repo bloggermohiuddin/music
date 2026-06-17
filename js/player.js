@@ -11,9 +11,15 @@ class AudioPlayer {
         this._mediaSession = 'mediaSession' in navigator;
         this._waveformData = new Uint8Array(128);
         this._animationFrame = null;
+        this._reverb = null;
+        this._echo = null;
+        this._bassBoost = null;
+        this._effectsConnected = false;
+        this._widgetChannel = null;
         this._setupAudio();
         this._setupEventListeners();
         this._setupMediaSession();
+        this._setupWidget();
     }
 
     _setupAudio() {
@@ -67,6 +73,47 @@ class AudioPlayer {
         });
     }
 
+    _setupWidget() {
+        try {
+            this._widgetChannel = new BroadcastChannel('audivo-widget');
+            this._widgetChannel.onmessage = (e) => {
+                if (!e.data) return;
+                switch (e.data.type) {
+                    case 'request-state':
+                    case 'state-update':
+                        this._broadcastWidgetState();
+                        break;
+                    case 'command':
+                        switch (e.data.action) {
+                            case 'play': this.play(); break;
+                            case 'pause': this.pause(); break;
+                            case 'prev': this.previous(); break;
+                            case 'next': this.next(); break;
+                            case 'seek':
+                                if (e.data.time !== undefined) this.seek(e.data.time);
+                                break;
+                        }
+                        break;
+                }
+            };
+        } catch (e) {}
+    }
+
+    _broadcastWidgetState() {
+        if (!this._widgetChannel) return;
+        const song = Store.get('currentSong');
+        const playing = !this.audio.paused;
+        this._widgetChannel.postMessage({
+            type: 'state-update',
+            title: song?.title || null,
+            artist: song?.artist || null,
+            thumbnail: song?.thumbnail || null,
+            playing,
+            currentTime: this.audio.currentTime || 0,
+            duration: this.audio.duration || 0
+        });
+    }
+
     _updateMediaSession() {
         if (!this._mediaSession) return;
         const song = Store.get('currentSong');
@@ -112,6 +159,7 @@ class AudioPlayer {
         }
 
         this._updateMediaSession();
+        this._broadcastWidgetState();
         try {
             await DB.addToHistory(song.id, 0);
         } catch (e) {
@@ -122,10 +170,19 @@ class AudioPlayer {
 
     async play() {
         if (!this._init) await this.initAudioContext();
+        if (this._init && !this._effectsApplied) {
+            const fx = Store.get('effects') || { reverb: 0, echo: 0, bassBoost: 0 };
+            const hasFx = fx.reverb > 0 || fx.echo > 0 || fx.bassBoost > 0;
+            if (hasFx) {
+                await this.setEffects();
+            }
+            this._effectsApplied = true;
+        }
         if (this.audio.paused && this.audio.src) {
             try {
                 await this.audio.play();
                 this._startWaveform();
+                this._broadcastWidgetState();
             } catch (e) {
                 console.error('Play failed:', e);
                 Store.showNotification('Playback failed', 'error');
@@ -136,6 +193,7 @@ class AudioPlayer {
                 await this.loadSong(queue[0]);
                 await this.audio.play();
                 this._startWaveform();
+                this._broadcastWidgetState();
             }
         }
     }
@@ -143,6 +201,7 @@ class AudioPlayer {
     pause() {
         this.audio.pause();
         this._stopWaveform();
+        this._broadcastWidgetState();
     }
 
     stop() {
@@ -229,7 +288,11 @@ class AudioPlayer {
     }
 
     setVolume(vol) {
-        this.audio.volume = Utils.clamp(vol, 0, 1);
+        const clamped = Utils.clamp(vol, 0, 1);
+        this.audio.volume = clamped;
+        Store.set('volume', clamped);
+        const slider = document.getElementById('settings-volume');
+        if (slider) slider.value = clamped;
     }
 
     toggleMute() {
@@ -279,8 +342,153 @@ class AudioPlayer {
         }
     }
 
+    async _createReverbImpulse(duration = 2, decay = 2) {
+        const rate = this.audioContext.sampleRate;
+        const length = rate * duration;
+        const impulse = this.audioContext.createBuffer(2, length, rate);
+        for (let ch = 0; ch < 2; ch++) {
+            const data = impulse.getChannelData(ch);
+            for (let i = 0; i < length; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+            }
+        }
+        return impulse;
+    }
+
+    async setEffects() {
+        if (!this.audioContext) return;
+        const fx = Store.get('effects') || { reverb: 0, echo: 0, bassBoost: 0 };
+
+        // Reverb
+        if (fx.reverb > 0 && !this._reverb) {
+            this._reverb = this.audioContext.createConvolver();
+            this._reverb.buffer = await this._createReverbImpulse(2, 2);
+            this._reverbWet = this.audioContext.createGain();
+            this._reverbWet.gain.value = fx.reverb / 100;
+        } else if (fx.reverb > 0 && this._reverbWet) {
+            this._reverbWet.gain.value = fx.reverb / 100;
+        } else if (fx.reverb === 0 && this._reverb) {
+            this._reverb = null;
+            this._reverbWet = null;
+        }
+
+        // Echo
+        if (fx.echo > 0 && !this._echo) {
+            this._echo = this.audioContext.createDelay(2);
+            this._echo.delayTime.value = 0.3;
+            this._echoFeedback = this.audioContext.createGain();
+            this._echoFeedback.gain.value = fx.echo / 150;
+            this._echoFilter = this.audioContext.createBiquadFilter();
+            this._echoFilter.type = 'lowpass';
+            this._echoFilter.frequency.value = 2000;
+            this._echo.connect(this._echoFeedback);
+            this._echoFeedback.connect(this._echoFilter);
+            this._echoFilter.connect(this._echo);
+            this._echoGain = this.audioContext.createGain();
+            this._echoGain.gain.value = fx.echo / 100;
+        } else if (fx.echo > 0 && this._echoGain) {
+            this._echoGain.gain.value = fx.echo / 100;
+            if (this._echoFeedback) this._echoFeedback.gain.value = fx.echo / 150;
+        } else if (fx.echo === 0 && this._echo) {
+            this._echo = null;
+            this._echoFeedback = null;
+            this._echoFilter = null;
+            this._echoGain = null;
+        }
+
+        // Bass boost
+        if (fx.bassBoost > 0 && !this._bassBoost) {
+            this._bassBoost = this.audioContext.createBiquadFilter();
+            this._bassBoost.type = 'lowshelf';
+            this._bassBoost.frequency.value = 100;
+            this._bassBoost.gain.value = fx.bassBoost * 0.6;
+        } else if (fx.bassBoost > 0 && this._bassBoost) {
+            this._bassBoost.gain.value = fx.bassBoost * 0.6;
+        } else if (fx.bassBoost === 0 && this._bassBoost) {
+            this._bassBoost = null;
+        }
+
+        this._connectEffects();
+    }
+
+    _connectEffects() {
+        this._disconnectEffects();
+        const input = this._eqConnected ? this._lastEqNode : this.analyser;
+
+        let node = input;
+
+        if (this._bassBoost) {
+            node.connect(this._bassBoost);
+            node = this._bassBoost;
+        }
+
+        const hasReverb = !!this._reverb;
+        const hasEcho = !!this._echo;
+
+        if (hasReverb || hasEcho) {
+            const fxSplit = this.audioContext.createGain();
+            fxSplit.gain.value = 1;
+            node.connect(fxSplit);
+
+            if (hasReverb) {
+                const reverbIn = this.audioContext.createGain();
+                reverbIn.gain.value = 1;
+                fxSplit.connect(reverbIn);
+                reverbIn.connect(this._reverb);
+                this._reverb.connect(this._reverbWet);
+                this._reverbWet.connect(this.gainNode);
+            }
+
+            if (hasEcho) {
+                const echoIn = this.audioContext.createGain();
+                echoIn.gain.value = 1;
+                fxSplit.connect(echoIn);
+                echoIn.connect(this._echo);
+                this._echo.connect(this._echoFeedback);
+                this._echoFeedback.connect(this._echoFilter);
+                this._echoFilter.connect(this._echo);
+                this._echo.connect(this._echoGain);
+                this._echoGain.connect(this.gainNode);
+            }
+
+            const dryGain = this.audioContext.createGain();
+            dryGain.gain.value = hasReverb ? Math.max(0.3, 1 - (Store.get('effects')?.reverb || 0) / 150) : 1;
+            fxSplit.connect(dryGain);
+            dryGain.connect(this.gainNode);
+            this._fxSplit = fxSplit;
+            this._fxDryGain = dryGain;
+        } else {
+            node.connect(this.gainNode);
+        }
+        this.gainNode.connect(this.audioContext.destination);
+        this._effectsConnected = true;
+    }
+
+    _disconnectEffects() {
+        try { this.gainNode.disconnect(); } catch(e) {}
+        const input = this._eqConnected ? this._lastEqNode : this.analyser;
+        try { input.disconnect(); } catch(e) {}
+        try { if (this._bassBoost) this._bassBoost.disconnect(); } catch(e) {}
+        try { if (this._fxSplit) this._fxSplit.disconnect(); } catch(e) {}
+        try { if (this._fxDryGain) this._fxDryGain.disconnect(); } catch(e) {}
+        try { if (this._reverb) this._reverb.disconnect(); } catch(e) {}
+        try { if (this._reverbWet) this._reverbWet.disconnect(); } catch(e) {}
+        try { if (this._echo) this._echo.disconnect(); } catch(e) {}
+        try { if (this._echoFeedback) this._echoFeedback.disconnect(); } catch(e) {}
+        try { if (this._echoFilter) this._echoFilter.disconnect(); } catch(e) {}
+        try { if (this._echoGain) this._echoGain.disconnect(); } catch(e) {}
+        this._effectsConnected = false;
+    }
+
     _onTimeUpdate() {
         Store.set('currentTime', this.audio.currentTime);
+        if (!this._widgetThrottle) {
+            this._widgetThrottle = true;
+            setTimeout(() => {
+                this._broadcastWidgetState();
+                this._widgetThrottle = false;
+            }, 1000);
+        }
     }
 
     _onLoadedMetadata() {

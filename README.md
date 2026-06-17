@@ -25,6 +25,7 @@
 - **Offline-First** — All songs stored as blobs in IndexedDB. Service Worker caches everything. Works in airplane mode.
 - **Installable PWA** — Web App Manifest, Service Worker, standalone mode, lock screen controls.
 - **PWA Auto-Update** — Versioned caches with skip-waiting. Check for Updates in settings compares versions and reloads automatically.
+- **PWA Home Screen Widget** — Now Playing widget with artwork, playback controls, seek bar. BroadcastChannel communication with main app.
 - **5 Themes** — Dark, Pure Black OLED, Light, Glassmorphism, Neon.
 
 ### Music Library
@@ -70,6 +71,13 @@
 - **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown
 - Media Session API (lock screen controls)
 
+### Audio Effects
+- **Reverb** — ConvolverNode with generated impulse response, adjustable wet/dry mix (0–100%)
+- **Echo/Delay** — 300ms delay with feedback loop through lowpass filter, adjustable intensity (0–100%)
+- **Bass Boost** — BiquadFilterNode lowshelf at 100Hz, adjustable gain (0–100%)
+- Real-time Web Audio API processing, effects chain: source → EQ → bass boost → reverb/echo → gain
+- Persistent settings, reset all effects in one click
+
 ### Equalizer
 - 10-band graphic equalizer (60Hz – 16kHz)
 - Bass boost / Treble boost presets
@@ -99,6 +107,8 @@
 - Default playback speed
 - Default repeat / shuffle
 - **10-band Equalizer** with presets
+- **Audio Effects** — reverb, echo, bass boost sliders with reset
+- **Listening Stats** — total songs played, listen time, top 5 artists bar chart, last 7 days history chart
 - Keyboard shortcuts reference
 - **Check for Updates** — version comparison, auto-reload on new version
 - Cache clear
@@ -145,7 +155,8 @@
 | Cache API | Static asset caching |
 | Web App Manifest | PWA installation |
 | History API | SPA routing |
-| Web Audio API | Audio playback + visualizer + equalizer |
+| Web Audio API | Audio playback + visualizer + equalizer + effects (reverb/echo/bass boost) |
+| BroadcastChannel | PWA widget communication |
 | Media Session API | Lock screen controls |
 | Web Workers | Background tasks |
 
@@ -155,8 +166,11 @@
 
 ```
 ├── index.html              # Entry point with Tailwind CSS
-├── manifest.json           # PWA manifest
-├── sw.js                   # Service Worker (versioned caches)
+├── widget.html             # PWA now-playing widget page
+├── manifest.json           # PWA manifest (shortcuts + widgets)
+├── sw.js                   # Service Worker (versioned caches, v1.0.3)
+├── serve.json              # Static server config
+├── .gitignore              # Git ignore rules
 ├── .htaccess               # Apache SPA rewrite
 ├── php/
 │   ├── api.php             # YouTube download API proxy
@@ -165,12 +179,16 @@
 │   ├── icon.png            # App icon (PNG)
 │   ├── icon.svg            # App icon (SVG)
 │   └── logo-full.png       # Full logo
+├── logo/
+│   ├── logo-full.png       # Full logo (dark text)
+│   ├── logo-full-light.png # Full logo (light text)
+│   └── logo-short.png      # Short logo variant
 └── js/
     ├── app.js              # Bootstrap, init, SW registration, keyboard shortcuts
     ├── router.js           # History API SPA router
     ├── store.js            # Observable state management
     ├── db.js               # IndexedDB wrapper (7 stores)
-    ├── player.js           # Audio player + Web Audio API + equalizer
+    ├── player.js           # Audio player + Web Audio API + equalizer + effects (reverb/echo/bass boost) + widget
     ├── theme.js            # Theme engine (5 themes)
     ├── utils.js            # Utility functions + modal dialogs
     ├── worker.js           # Web Worker
@@ -181,10 +199,10 @@
         ├── home.js         # Dashboard page
         ├── library.js      # Music library (grid/list/artist, batch select)
         ├── search.js       # Search page
-        ├── player.js       # Fullscreen player page + visualizer
+        ├── player.js       # Fullscreen player page + visualizer + sleep timer
         ├── downloads.js    # YouTube search/download + upload
         ├── playlists.js    # Playlist management + add songs with search
-        ├── settings.js     # Settings page + equalizer + update checker
+        ├── settings.js     # Settings + equalizer + effects + listening stats + update checker
         ├── history.js      # Recently played page
         ├── favorites.js    # Favorites page
         └── contextmenu.js  # Right-click/long-press context menu + edit modal
@@ -246,6 +264,21 @@ Song blob in IndexedDB → URL.createObjectURL() → HTML5 Audio element → pla
 ### PWA Update Flow
 ```
 Settings → Check for Updates → fetch sw.js with cache-bust → compare APP_VERSION → if different → skipWaiting + reload
+```
+
+### PWA Widget Communication
+```
+widget.html ↔ BroadcastChannel('audivo-widget') ↔ player.js
+Widget sends: play/pause/prev/next/seek commands
+Player sends: title, artist, artwork, playing state, currentTime, duration (1s throttle)
+```
+
+### Audio Effects Chain
+```
+source → analyser → [EQ BiquadFilters] → [Bass Boost] → [Reverb/Echo split] → gainNode → destination
+Reverb: ConvolverNode with generated impulse response, dry/wet mix
+Echo: DelayNode (300ms) → feedback → lowpass filter → loop
+Bass Boost: BiquadFilterNode lowshelf at 100Hz
 ```
 
 ### Data Persistence
@@ -329,7 +362,8 @@ Contributions are welcome! Here's how you can help:
 
 ### Ideas for Contributions
 - Lyrics display (synced LRC files)
-- Drag-and-drop reorder in playlists
+- Audio normalization (auto-level volume across songs)
+- Gapless playback (no silence between tracks)
 - Import playlists from CSV/JSON
 - PWA offline indicator banner
 - AirPlay / Chromecast support

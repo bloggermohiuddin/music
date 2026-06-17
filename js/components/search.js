@@ -71,13 +71,13 @@ const SearchPage = {
         this._bindEvents();
     },
 
-    _playSong(songId) {
+    async _playSong(songId) {
         const song = Store.get('songs').find(s => s.id === songId);
         if (!song) return;
         const results = Store.get('searchResults');
         const idx = results.findIndex(s => s.id === songId);
         Store.setQueue(results, idx);
-        Player.loadSong(song);
+        await Player.loadSong(song);
         Player.play();
         Router.navigate('/player');
     },

@@ -24,6 +24,7 @@ var Store = (function() {
         showMiniPlayer: false,
         theme: 'dark',
         equalizer: { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 },
+        effects: { reverb: 0, echo: 0, bassBoost: 0 },
         sleepTimer: null,
         crossfade: 0,
         lyrics: '',

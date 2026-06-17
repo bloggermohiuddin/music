@@ -456,6 +456,7 @@ const PlayerPage = {
     _updateSleepTimer() {
         const section = document.getElementById('sleep-timer-section');
         if (section) section.innerHTML = this._renderSleepTimer();
+        this._startSleepCountdown();
     },
 
     _initQueueDragDrop() {
@@ -496,7 +497,10 @@ const PlayerPage = {
     },
 
     _startSleepCountdown() {
-        if (this._sleepCountdownInterval) return;
+        if (this._sleepCountdownInterval) {
+            clearInterval(this._sleepCountdownInterval);
+            this._sleepCountdownInterval = null;
+        }
         this._sleepCountdownInterval = setInterval(() => {
             const el = document.getElementById('sleep-timer-countdown');
             if (!el) return;
