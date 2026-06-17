@@ -2,6 +2,8 @@ const DownloadsPage = {
     _unsubs: [],
     _isDownloading: false,
     _abortControllers: new Map(),
+    _searchResults: [],
+    _searchQuery: '',
 
     async render() {
         const downloads = Store.get('downloads') || [];
@@ -14,15 +16,36 @@ const DownloadsPage = {
                 <div class="flex items-center justify-between mb-6">
                     <div>
                         <h1 class="text-2xl md:text-3xl font-bold" style="color:var(--text);">Downloads</h1>
-                        <p class="text-sm mt-1" style="color:var(--text-secondary);">Download music from YouTube</p>
+                        <p class="text-sm mt-1" style="color:var(--text-secondary);">Search YouTube or paste a link</p>
                     </div>
                 </div>
 
                 <div class="mb-6">
                     <div class="p-4 md:p-6 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
-                        <label class="text-sm font-medium mb-2 block" style="color:var(--text);">Paste YouTube or YouTube Music link</label>
+                        <label class="text-sm font-medium mb-2 block" style="color:var(--text);">Search YouTube</label>
                         <div class="flex gap-2">
-                            <input type="url" id="yt-url-input" placeholder="https://music.youtube.com/watch?v=... or https://youtube.com/watch?v=..."
+                            <input type="text" id="yt-search-input" placeholder="Search songs, artists, albums..."
+                                class="flex-1 px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2"
+                                style="background:var(--input-bg); color:var(--text); border:1px solid var(--border);">
+                            <button id="yt-search-btn" 
+                                class="px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2" 
+                                style="background:var(--primary); color:white; hover:scale-105;">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="yt-search-results" class="mb-6">
+                    ${this._searchResults.length > 0 ? this._renderSearchResults() : ''}
+                </div>
+
+                <div class="mb-6">
+                    <div class="p-4 md:p-6 rounded-xl" style="background:var(--card-bg); border:1px solid var(--border);">
+                        <label class="text-sm font-medium mb-2 block" style="color:var(--text);">Or paste a direct link</label>
+                        <div class="flex gap-2">
+                            <input type="url" id="yt-url-input" placeholder="https://youtube.com/watch?v=..."
                                 ${disabled ? 'disabled' : ''}
                                 class="flex-1 px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2"
                                 style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); ${disabled ? 'opacity:0.5; cursor:not-allowed;' : ''}">
@@ -56,12 +79,42 @@ const DownloadsPage = {
                         <svg class="w-10 h-10" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
                     <h2 class="text-lg font-semibold mb-2" style="color:var(--text);">No downloads yet</h2>
-                    <p class="text-sm" style="color:var(--text-secondary);">Paste a YouTube link or upload audio files to get started</p>
+                    <p class="text-sm" style="color:var(--text-secondary);">Search YouTube or paste a link to get started</p>
                 </div>
                 ` : `<div id="download-queue">${this._renderQueue(downloads)}</div>`}
             </div>
         `;
         this._bindEvents();
+    },
+
+    _renderSearchResults() {
+        if (this._searchResults.length === 0) return '';
+        return `
+            <div class="space-y-2">
+                <h2 class="text-lg font-semibold mb-3" style="color:var(--text);">Search Results</h2>
+                ${this._searchResults.map(r => `
+                    <div class="search-result-item flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200"
+                        style="background:var(--card-bg); border:1px solid var(--border); hover:background:var(--surface-hover);"
+                        data-url="${r.url}" data-title="${Utils.htmlEncode(r.title)}" data-thumb="${r.imgSrc || ''}" data-duration="${r.duration || ''}">
+                        <div class="w-16 h-12 rounded-lg flex-shrink-0 overflow-hidden" style="background:var(--surface);">
+                            ${r.imgSrc 
+                                ? `<img src="${r.imgSrc}" alt="" class="w-full h-full object-cover" loading="lazy">`
+                                : `<div class="w-full h-full flex items-center justify-center"><svg class="w-6 h-6" style="color:var(--text-muted);" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div>`
+                            }
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.title)}</p>
+                            <p class="text-xs" style="color:var(--text-secondary);">${r.duration || 'Unknown length'}</p>
+                        </div>
+                        <button class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0" 
+                            style="background:var(--primary); color:white; hover:scale-105;"
+                            data-url="${r.url}" data-title="${Utils.htmlEncode(r.title)}" data-thumb="${r.imgSrc || ''}" data-duration="${r.duration || ''}">
+                            Download
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
     },
 
     _renderQueue(downloads) {
@@ -111,8 +164,27 @@ const DownloadsPage = {
     },
 
     _bindEvents() {
-        const downloadBtn = document.getElementById('yt-download-btn');
-        downloadBtn?.addEventListener('click', () => {
+        document.getElementById('yt-search-btn')?.addEventListener('click', () => this._searchYouTube());
+        document.getElementById('yt-search-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this._searchYouTube();
+        });
+
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('.search-result-item, [data-url]');
+            if (!item) return;
+            const btn = e.target.closest('button[data-url]');
+            const isDownloadBtn = btn && btn.parentElement === item;
+            if (!isDownloadBtn && !item.classList.contains('search-result-item')) return;
+            e.stopPropagation();
+            this._downloadFromSearch(
+                item.dataset.url,
+                item.dataset.title,
+                item.dataset.thumb,
+                item.dataset.duration
+            );
+        });
+
+        document.getElementById('yt-download-btn')?.addEventListener('click', () => {
             if (!this._isDownloading) this._startYouTubeDownload();
         });
 
@@ -130,6 +202,106 @@ const DownloadsPage = {
                 await Store.loadSongs();
                 Store.showNotification('Files uploaded successfully', 'success');
             });
+        }
+    },
+
+    async _searchYouTube() {
+        const input = document.getElementById('yt-search-input');
+        const query = input?.value.trim();
+        if (!query) {
+            Store.showNotification('Please enter a search term', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('yt-search-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+        }
+
+        try {
+            const response = await fetch('https://embed.dlsrv.online/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+
+            if (!response.ok) throw new Error('Search failed');
+
+            const result = await response.json();
+            this._searchResults = result.data || [];
+            this._searchQuery = query;
+
+            const resultsEl = document.getElementById('yt-search-results');
+            if (resultsEl) resultsEl.innerHTML = this._renderSearchResults();
+
+            if (this._searchResults.length === 0) {
+                Store.showNotification('No results found', 'info');
+            }
+        } catch (e) {
+            Store.showNotification('Search failed: ' + e.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Search';
+            }
+        }
+    },
+
+    async _downloadFromSearch(url, title, thumbnail, duration) {
+        if (this._isDownloading) return;
+        this._isDownloading = true;
+        this._updateButtonLoading(true);
+
+        const input = document.getElementById('yt-url-input');
+        if (input) input.value = url;
+
+        try {
+            Store.showNotification('Fetching audio info...', 'info');
+
+            const response = await fetch('https://bloggermahim.serv00.net/yt/api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+
+            if (!response.ok) throw new Error('API request failed');
+
+            const data = await response.json();
+
+            if (!data.status || !data.link) {
+                throw new Error(data.message || 'Failed to get download link');
+            }
+
+            const downloadId = await DB.addDownload({
+                url: data.link,
+                title: data.title || title || 'YouTube Song',
+                progress: 0,
+                status: 'downloading'
+            });
+
+            const controller = new AbortController();
+            this._abortControllers.set(downloadId, controller);
+
+            Store.showNotification(`Downloading: ${data.title || title}`, 'info');
+            await Store.loadDownloads();
+            this._updateQueue();
+
+            await this._downloadAndStore({
+                ...data,
+                title: data.title || title,
+                thumbnail: data.thumbnail || thumbnail,
+                duration: data.duration || 0
+            }, downloadId, url, controller.signal);
+
+            this._isDownloading = false;
+            this._updateButtonLoading(false);
+            if (input) input.value = '';
+
+        } catch (e) {
+            Store.showNotification(`Download failed: ${e.message}`, 'error');
+            this._isDownloading = false;
+            this._updateButtonLoading(false);
         }
     },
 
