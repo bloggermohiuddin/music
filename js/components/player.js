@@ -518,6 +518,7 @@ const PlayerPage = {
         const loading = Store.get('lyricsLoading');
         const error = Store.get('lyricsError');
         const song = Store.get('currentSong');
+        const results = Store.get('lyricsResults');
 
         if (!song) return '';
 
@@ -525,16 +526,30 @@ const PlayerPage = {
             return `<div class="text-center py-6">
                 <div class="w-6 h-6 mx-auto" style="border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
                 <p class="text-xs mt-2" style="color:var(--text-muted);">Searching lyrics...</p>
-                <input id="lyrics-search-input" type="text" value="${song ? Utils.htmlEncode(song.title) : ''}" placeholder="Search by track name..." class="w-full max-w-xs mx-auto px-3 py-1.5 rounded-lg text-xs text-center outline-none mt-2" style="background:var(--surface); color:var(--text-muted); border:1px solid var(--border);" disabled>
-                <button disabled class="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium opacity-50 cursor-not-allowed" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Searching...</button>
+            </div>`;
+        }
+
+        if (results && results.length > 0) {
+            return `<div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;">
+                <div class="p-2">
+                    <p class="text-xs px-2 py-1 mb-1" style="color:var(--text-muted);">${results.length} results found — tap to select</p>
+                    ${results.map(r => `
+                        <button onclick="PlayerPage._selectLyrics(${r.id})" class="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:scale-[1.01]" style="color:var(--text-secondary); border:1px solid var(--border); margin-bottom:4px;">
+                            <div class="font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.trackName || 'Unknown')}</div>
+                            <div class="truncate" style="color:var(--text-muted);">${Utils.htmlEncode(r.artistName || '')} ${r.albumName ? '· ' + Utils.htmlEncode(r.albumName) : ''}</div>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="text-center mt-2">
+                <button onclick="Store.set('lyricsResults', null); PlayerPage._renderLyricsSection();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Back to search</button>
             </div>`;
         }
 
         if (error) {
             return `<div class="text-center py-6">
                 <p class="text-sm mb-2" style="color:var(--text-muted);">${error}</p>
-                <input id="lyrics-search-input" type="text" value="${song ? Utils.htmlEncode(song.title) : ''}" placeholder="Search by track name..." class="w-full max-w-xs mx-auto px-3 py-1.5 rounded-lg text-xs text-center outline-none mb-2" style="background:var(--surface); color:var(--text); border:1px solid var(--border);" onkeydown="if(event.key==='Enter')PlayerPage._searchLyricsManual()">
-                <button id="btn-search-lyrics" onclick="PlayerPage._searchLyricsManual()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Try Again</button>
+                <button onclick="PlayerPage._loadLyrics()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Search Again</button>
             </div>`;
         }
 
@@ -546,7 +561,6 @@ const PlayerPage = {
             </div>`;
         }
 
-        // Synced lyrics
         if (lyrics.lines && lyrics.lines.length > 0) {
             const currentTime = Store.get('currentTime');
             const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
@@ -563,10 +577,12 @@ const PlayerPage = {
                         `).join('')}
                     </div>
                 </div>
+                <div class="text-center mt-2">
+                    <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                </div>
             `;
         }
 
-        // Plain lyrics
         if (lyrics.plain) {
             return `
                 <div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;">
@@ -574,10 +590,18 @@ const PlayerPage = {
                         ${Utils.htmlEncode(lyrics.plain)}
                     </div>
                 </div>
+                <div class="text-center mt-2">
+                    <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                </div>
             `;
         }
 
         return '';
+    },
+
+    _renderLyricsSection() {
+        const section = document.getElementById('lyrics-section');
+        if (section) section.innerHTML = this._renderLyrics();
     },
 
     _searchLyricsManual() {
@@ -603,6 +627,7 @@ const PlayerPage = {
         this._lyricsLoading = true;
         Store.set('lyricsLoading', true);
         Store.set('lyricsError', null);
+        Store.set('lyricsResults', null);
 
         const section = document.getElementById('lyrics-section');
         if (section) section.innerHTML = this._renderLyrics();
@@ -616,39 +641,59 @@ const PlayerPage = {
                     Store.set('lyricsLoading', false);
                     this._lyricsLoading = false;
                     if (parsed) this._startLyricsSync();
-                    const sec = document.getElementById('lyrics-section');
-                    if (sec) sec.innerHTML = this._renderLyrics();
+                    this._renderLyricsSection();
                     return;
                 }
             }
 
             const artist = isRealArtist ? song.artist : '';
-            const result = await DB.searchLyricsOnline(artist, searchQuery, song.album, song.duration);
+            const results = await DB.searchLyricsOnline(artist, searchQuery);
+
+            Store.set('lyricsLoading', false);
+            this._lyricsLoading = false;
+
+            if (results && results.length > 0) {
+                Store.set('lyricsResults', results);
+            } else {
+                Store.set('lyricsError', 'No lyrics found');
+            }
+            this._renderLyricsSection();
+        } catch (e) {
+            console.warn('Lyrics load error:', e);
+            Store.set('lyricsLoading', false);
+            this._lyricsLoading = false;
+            Store.set('lyricsError', 'Failed to search lyrics');
+            this._renderLyricsSection();
+        }
+    },
+
+    async _selectLyrics(lrcLibId) {
+        const song = Store.get('currentSong');
+        if (!song) return;
+
+        this._lyricsLoading = true;
+        Store.set('lyricsLoading', true);
+        Store.set('lyricsResults', null);
+        this._renderLyricsSection();
+
+        try {
+            const result = await DB.getLyricsById(lrcLibId);
             if (result && (result.plainLyrics || result.syncedLyrics)) {
                 const parsed = result.syncedLyrics ? this._parseLRC(result.syncedLyrics) : null;
                 Store.set('lyrics', { plain: result.plainLyrics || null, synced: result.syncedLyrics || null, lines: parsed });
-                if (!manualQuery) await DB.saveLyrics(song.id, result.plainLyrics || null, result.syncedLyrics || null);
+                await DB.saveLyrics(song.id, result.plainLyrics || null, result.syncedLyrics || null);
                 if (parsed) this._startLyricsSync();
             } else {
-                const results = await DB.searchLyricsByQuery(searchQuery);
-                if (results && results.length > 0 && results[0].plainLyrics) {
-                    const best = results[0];
-                    const parsed = best.syncedLyrics ? this._parseLRC(best.syncedLyrics) : null;
-                    Store.set('lyrics', { plain: best.plainLyrics || null, synced: best.syncedLyrics || null, lines: parsed });
-                    if (!manualQuery) await DB.saveLyrics(song.id, best.plainLyrics || null, best.syncedLyrics || null);
-                    if (parsed) this._startLyricsSync();
-                } else {
-                    Store.set('lyricsError', 'No lyrics found');
-                }
+                Store.set('lyricsError', 'Failed to load lyrics');
             }
         } catch (e) {
-            console.warn('Lyrics load error:', e);
+            console.warn('Lyrics fetch error:', e);
             Store.set('lyricsError', 'Failed to load lyrics');
         }
+
         Store.set('lyricsLoading', false);
         this._lyricsLoading = false;
-        const sec = document.getElementById('lyrics-section');
-        if (sec) sec.innerHTML = this._renderLyrics();
+        this._renderLyricsSection();
     },
 
     _parseLRC(lrcText) {

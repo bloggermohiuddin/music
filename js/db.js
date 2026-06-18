@@ -375,30 +375,27 @@ class MusicDatabase {
 
     async searchLyricsOnline(artist, title, album, duration) {
         try {
-            const params = new URLSearchParams({
-                artist_name: artist || '',
-                track_name: title || '',
-                album_name: album || '',
-                duration: Math.round(duration || 0)
-            });
-            const resp = await fetch(`https://lrclib.net/api/get?${params}`, { signal: AbortSignal.timeout(8000) });
+            const params = new URLSearchParams();
+            if (title) params.set('track_name', title);
+            if (artist) params.set('artist_name', artist);
+            const resp = await fetch(`https://lrclib.net/api/search?${params}`, { signal: AbortSignal.timeout(8000) });
+            if (!resp.ok) return [];
+            const results = await resp.json();
+            return Array.isArray(results) ? results : [];
+        } catch (e) {
+            console.warn('Lyrics search failed:', e);
+            return [];
+        }
+    }
+
+    async getLyricsById(id) {
+        try {
+            const resp = await fetch(`https://lrclib.net/api/get/${id}`, { signal: AbortSignal.timeout(8000) });
             if (!resp.ok) return null;
             return await resp.json();
         } catch (e) {
             console.warn('Lyrics fetch failed:', e);
             return null;
-        }
-    }
-
-    async searchLyricsByQuery(query) {
-        try {
-            const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(8000) });
-            if (!resp.ok) return [];
-            const data = await resp.json();
-            return data;
-        } catch (e) {
-            console.warn('Lyrics search failed:', e);
-            return [];
         }
     }
 }

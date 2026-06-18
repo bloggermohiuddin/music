@@ -33,6 +33,7 @@ var Store = (function() {
         carMode: false,
         lyrics: null,
         lyricsLoading: false,
+        lyricsResults: null,
         lyricsError: null,
         lyricsPanelOpen: false,
         storageInfo: { totalSize: 0, songCount: 0 },
