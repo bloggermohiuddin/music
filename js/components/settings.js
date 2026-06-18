@@ -82,6 +82,17 @@ const SettingsPage = {
                                         style="background:white; transform:translateX(${shuffle ? '24px' : '0'});"></div>
                                 </button>
                             </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium" style="color:var(--text);">Car Mode</p>
+                                    <p class="text-xs" style="color:var(--text-secondary);">Larger controls for driving</p>
+                                </div>
+                                <button id="settings-car-mode-toggle" class="relative w-12 h-6 rounded-full transition-all"
+                                    style="background:${Store.get('carMode') ? 'var(--primary)' : 'var(--surface)'};">
+                                    <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all shadow"
+                                        style="background:white; transform:translateX(${Store.get('carMode') ? '24px' : '0'});"></div>
+                                </button>
+                            </div>
                         </div>
                     </section>
 
@@ -205,7 +216,13 @@ const SettingsPage = {
                             <p>All data stored locally in your browser</p>
                             <p>No server, no backend, no tracking</p>
                         </div>
-                        <button onclick="SettingsPage._resetAll()" class="mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:#ef4444; border:1px solid var(--border);">Reset All Settings</button>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="SettingsPage._resetAll()" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--surface); color:#ef4444; border:1px solid var(--border);">Reset All Settings</button>
+                            <button onclick="SettingsPage._reloadApp()" class="px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:var(--primary); color:white;">
+                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                Reload App
+                            </button>
+                        </div>
                     </section>
                 </div>
             </div>
@@ -224,7 +241,8 @@ const SettingsPage = {
             const val = parseInt(e.target.value);
             Player.setCrossfade(val);
             Store.set('crossfade', val);
-            document.querySelector('#settings-crossfade + p, .text-xs').textContent = val + ' seconds';
+            const cfLabel = document.getElementById('settings-crossfade')?.parentElement?.querySelector('p:last-child');
+            if (cfLabel) cfLabel.textContent = val + ' seconds';
         });
         document.querySelectorAll('.settings-speed-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -255,6 +273,13 @@ const SettingsPage = {
                 btn.style.color = 'white';
                 btn.style.border = 'none';
             });
+        });
+        document.getElementById('settings-car-mode-toggle')?.addEventListener('click', function() {
+            const current = Store.get('carMode');
+            Store.set('carMode', !current);
+            document.body.classList.toggle('car-mode', !current);
+            this.style.background = !current ? 'var(--primary)' : 'var(--surface)';
+            this.querySelector('div').style.transform = !current ? 'translateX(24px)' : 'translateX(0)';
         });
         document.getElementById('settings-shuffle-toggle')?.addEventListener('click', function() {
             const current = Store.get('shuffle');
@@ -491,6 +516,12 @@ const SettingsPage = {
         }
     },
 
+    async _reloadApp() {
+        const ok = await Modal.confirm('Reload App', 'This will refresh the application. Unsaved data will not be lost.');
+        if (!ok) return;
+        window.location.reload();
+    },
+
     async _resetAll() {
         const ok = await Modal.confirm('Reset All Settings', 'Reset volume, crossfade, speed, equalizer, and all preferences to defaults? Your songs and playlists will NOT be deleted.');
         if (!ok) return;
@@ -499,6 +530,8 @@ const SettingsPage = {
         Store.set('crossfade', 0);
         Store.set('repeat', 'none');
         Store.set('shuffle', false);
+        Store.set('carMode', false);
+        document.body.classList.remove('car-mode');
         Store.set('equalizer', { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 });
         Store.set('effects', { reverb: 0, echo: 0, bassBoost: 0 });
         Player.setVolume(0.8);

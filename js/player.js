@@ -128,6 +128,21 @@ class AudioPlayer {
 
     async loadSong(song) {
         this.stop();
+        this._effectsApplied = false;
+        if (this._sleepTimerEnd && song.duration) {
+            const trackRemaining = (song.duration - 5) * 1000;
+            const timerRemaining = this._sleepTimerEnd - Date.now();
+            if (trackRemaining < timerRemaining) {
+                this._sleepTimerEnd = Date.now() + trackRemaining;
+                clearTimeout(this._sleepTimer);
+                this._sleepTimer = setTimeout(() => {
+                    this._sleepTimerEnd = null;
+                    this.fadeOut(3000);
+                    Store.showNotification('Sleep timer: elapsed, playback stopped', 'info');
+                    Store.set('sleepTimer', null);
+                }, trackRemaining);
+            }
+        }
         const { blob, ...meta } = song;
         Store.set('currentSong', meta);
         Store.set('currentTime', 0);
@@ -357,6 +372,7 @@ class AudioPlayer {
 
     async setEffects() {
         if (!this.audioContext) return;
+        this._effectsApplied = false;
         const fx = Store.get('effects') || { reverb: 0, echo: 0, bassBoost: 0 };
 
         // Reverb
@@ -511,9 +527,10 @@ class AudioPlayer {
     _applyCrossfade() {
         return new Promise(resolve => {
             const duration = Store.get('crossfade');
+            const userVolume = Store.get('volume');
             const fadeOutInterval = 50;
             const steps = Math.floor((duration * 1000) / fadeOutInterval);
-            const stepSize = 1 / steps;
+            const stepSize = userVolume / steps;
             let currentStep = 0;
 
             if (this._crossfadeTimer) {
@@ -522,7 +539,7 @@ class AudioPlayer {
 
             this._crossfadeTimer = setInterval(() => {
                 currentStep++;
-                const vol = Math.max(0, 1 - (currentStep * stepSize));
+                const vol = Math.max(0, userVolume - (currentStep * stepSize));
                 this.audio.volume = vol;
                 if (currentStep >= steps) {
                     clearInterval(this._crossfadeTimer);

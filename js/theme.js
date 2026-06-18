@@ -3,7 +3,7 @@ class ThemeEngine {
         this.themes = {
             dark: {
                 name: 'Dark',
-                icon: '🌙',
+                icon: 'Dk',
                 colors: {
                     bg: '#0a0a0f',
                     surface: 'rgba(255,255,255,0.05)',
@@ -29,7 +29,7 @@ class ThemeEngine {
             },
             oled: {
                 name: 'Pure Black OLED',
-                icon: '⬛',
+                icon: 'BL',
                 colors: {
                     bg: '#000000',
                     surface: 'rgba(255,255,255,0.03)',
@@ -55,7 +55,7 @@ class ThemeEngine {
             },
             light: {
                 name: 'Light',
-                icon: '☀️',
+                icon: 'Lt',
                 colors: {
                     bg: '#f5f5f5',
                     surface: 'rgba(0,0,0,0.03)',
@@ -81,7 +81,7 @@ class ThemeEngine {
             },
             glass: {
                 name: 'Glassmorphism',
-                icon: '🪟',
+                icon: 'Gl',
                 colors: {
                     bg: '#0a0a1a',
                     surface: 'rgba(255,255,255,0.06)',
@@ -107,7 +107,7 @@ class ThemeEngine {
             },
             neon: {
                 name: 'Neon',
-                icon: '💜',
+                icon: 'Ne',
                 colors: {
                     bg: '#0d0d1a',
                     surface: 'rgba(255,255,255,0.04)',
@@ -133,7 +133,7 @@ class ThemeEngine {
             },
             forest: {
                 name: 'Forest',
-                icon: '🌲',
+                icon: 'Fd',
                 colors: {
                     bg: '#0f1a12',
                     surface: 'rgba(255,255,255,0.04)',
@@ -159,7 +159,7 @@ class ThemeEngine {
             },
             ocean: {
                 name: 'Ocean',
-                icon: '🌊',
+                icon: 'Oc',
                 colors: {
                     bg: '#0a1628',
                     surface: 'rgba(255,255,255,0.04)',
@@ -185,7 +185,7 @@ class ThemeEngine {
             },
             sunset: {
                 name: 'Sunset',
-                icon: '🌅',
+                icon: 'Su',
                 colors: {
                     bg: '#1a0f0a',
                     surface: 'rgba(255,255,255,0.04)',
@@ -211,7 +211,7 @@ class ThemeEngine {
             },
             midnight: {
                 name: 'Midnight',
-                icon: '🌙',
+                icon: 'Md',
                 colors: {
                     bg: '#0a0a1e',
                     surface: 'rgba(255,255,255,0.04)',
@@ -237,7 +237,7 @@ class ThemeEngine {
             },
             dracula: {
                 name: 'Dracula',
-                icon: '🧛',
+                icon: 'Dr',
                 colors: {
                     bg: '#1e1330',
                     surface: 'rgba(255,255,255,0.04)',
@@ -263,7 +263,7 @@ class ThemeEngine {
             },
             cyberpunk: {
                 name: 'Cyberpunk',
-                icon: '🔮',
+                icon: 'Cy',
                 colors: {
                     bg: '#0a0a14',
                     surface: 'rgba(255,255,255,0.04)',
@@ -289,7 +289,7 @@ class ThemeEngine {
             },
             sepia: {
                 name: 'Sepia',
-                icon: '📜',
+                icon: 'Se',
                 colors: {
                     bg: '#1a1410',
                     surface: 'rgba(255,255,255,0.04)',
@@ -356,6 +356,11 @@ class ThemeEngine {
 
     getAllThemes() {
         return Object.entries(this.themes).map(([key, val]) => ({ key, ...val }));
+    }
+
+    getThemeIcon(themeName) {
+        const theme = this.themes[themeName];
+        return theme ? theme.icon : '?';
     }
 
     setTheme(name) {

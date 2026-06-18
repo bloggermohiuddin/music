@@ -13,6 +13,11 @@ const SidebarComponent = {
             <aside id="sidebar-inner" class="fixed left-0 top-[60px] bottom-[80px] z-40"
                 style="width:${sidebarWidth}px; background:var(--navbar-bg); border-right:1px solid var(--border); backdrop-filter:blur(20px); overflow:hidden; transform:${mobile ? (open ? 'translateX(0)' : 'translateX(-100%)') : 'none'}; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); ${!mobile ? 'width:' + (open ? '240' : '0') + 'px' : ''};">
                 <div class="p-4" style="min-width:${sidebarWidth}px; width:${sidebarWidth}px; overflow-y:auto; height:100%;">
+                    <div class="flex items-center justify-end mb-2">
+                        <button id="sidebar-pin-btn" class="p-1 rounded transition-all" style="color:${Store.get('sidebarPinned') ? 'var(--primary)' : 'var(--text-muted)'}; hover:color:var(--text);" title="${Store.get('sidebarPinned') ? 'Unpin sidebar' : 'Pin sidebar'}">
+                            <svg class="w-4 h-4" fill="${Store.get('sidebarPinned') ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a4 4 0 11-8 0 4 4 0 018 0zm-8 0V7a4 4 0 118 0v4M7 17h10v2H7v-2z"/></svg>
+                        </button>
+                    </div>
                     <div class="space-y-1 mb-6">
                         ${[
                             { label: 'Home', path: '/', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -79,6 +84,11 @@ const SidebarComponent = {
     },
 
     _bindEvents() {
+        document.getElementById('sidebar-pin-btn')?.addEventListener('click', () => {
+            const pinned = !Store.get('sidebarPinned');
+            Store.set('sidebarPinned', pinned);
+            this.render();
+        });
         document.getElementById('create-playlist-btn')?.addEventListener('click', () => {
             Router.navigate('/playlists');
             setTimeout(() => {

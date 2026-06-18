@@ -6,12 +6,13 @@ const LibraryPage = {
     _selected: new Set(),
     _collapsedGroups: new Set(),
 
-    async render() {
+    async render(preserveScroll) {
         const songs = Store.get('songs');
         const sorted = this._getSortedSongs(songs);
         const el = document.getElementById('main-content');
         if (!el) return;
 
+        const scrollY = preserveScroll ? el.scrollTop : 0;
         el.innerHTML = `
             <div class="p-4 md:p-6 pb-28 md:pb-32">
                 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -36,6 +37,7 @@ const LibraryPage = {
                             <option value="title" ${this._sortBy === 'title' ? 'selected' : ''}>Title</option>
                             <option value="artist" ${this._sortBy === 'artist' ? 'selected' : ''}>Artist</option>
                             <option value="duration" ${this._sortBy === 'duration' ? 'selected' : ''}>Duration</option>
+                            <option value="custom" ${this._sortBy === 'custom' ? 'selected' : ''}>Custom</option>
                         </select>
                         <button id="upload-btn" class="p-2 rounded-lg" style="color:var(--primary); hover:background:var(--surface-hover);" title="Upload Music">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -73,10 +75,22 @@ const LibraryPage = {
         `;
 
         this._bindEvents();
+        if (preserveScroll && el.scrollTop === 0) {
+            requestAnimationFrame(() => { el.scrollTop = scrollY; });
+        }
     },
 
     _getSortedSongs(songs) {
         const s = [...songs];
+        const customOrder = Store.get('songOrder');
+        if (this._sortBy === 'custom' && customOrder) {
+            const map = {};
+            s.forEach(song => { map[song.id] = song; });
+            const ordered = [];
+            customOrder.forEach(id => { if (map[id]) ordered.push(map[id]); });
+            s.forEach(song => { if (!customOrder.includes(song.id)) ordered.push(song); });
+            return ordered;
+        }
         switch (this._sortBy) {
             case 'title': s.sort((a, b) => (a.title || '').localeCompare(b.title || '')); break;
             case 'artist': s.sort((a, b) => (a.artist || '').localeCompare(b.artist || '')); break;
@@ -92,7 +106,7 @@ const LibraryPage = {
                 ${songs.map(song => `
                     <div class="song-card group rounded-xl p-3 transition-all duration-300 cursor-pointer hover:scale-[1.02]" 
                         style="background:var(--card-bg); border:1px solid ${this._selected.has(song.id) ? 'var(--primary)' : 'var(--border)'}; touch-action:manipulation;" 
-                        data-song-id="${song.id}" data-grid-song="${song.id}">
+                        data-song-id="${song.id}" data-grid-song="${song.id}" draggable="true">
                         <div class="relative mb-3">
                             ${this._selectMode ? `
                             <label class="absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all" style="background:${this._selected.has(song.id) ? 'var(--primary)' : 'rgba(0,0,0,0.5)'}; border:2px solid ${this._selected.has(song.id) ? 'white' : 'rgba(255,255,255,0.3)'};">
@@ -133,7 +147,7 @@ const LibraryPage = {
                 </div>
                 ${songs.map((song, i) => `
                     <div class="song-list-item grid grid-cols-12 gap-3 px-4 py-2.5 items-center transition-all duration-200 cursor-pointer" 
-                        style="hover:background:var(--surface-hover); ${this._selected.has(song.id) ? 'background:var(--surface-active);' : ''} touch-action:manipulation;" data-song-id="${song.id}"
+                        style="hover:background:var(--surface-hover); ${this._selected.has(song.id) ? 'background:var(--surface-active);' : ''} touch-action:manipulation;" data-song-id="${song.id}" draggable="true"
                         onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background='${this._selected.has(song.id) ? 'var(--surface-active)' : 'transparent'}'">
                         <div class="col-span-1 text-sm flex items-center gap-2" style="color:var(--text-muted);">
                             ${this._selectMode ? `
@@ -206,7 +220,7 @@ const LibraryPage = {
                                 ${artistSongs.map(song => `
                                     <div class="song-list-item flex items-center gap-3 px-4 py-2 transition-all cursor-pointer" 
                                         style="hover:background:var(--surface-hover); ${this._selected.has(song.id) ? 'background:var(--surface-active);' : ''}" 
-                                        data-song-id="${song.id}">
+                                        data-song-id="${song.id}" draggable="true">
                                         ${this._selectMode ? `
                                         <label class="w-5 h-5 rounded flex items-center justify-center cursor-pointer flex-shrink-0" style="background:${this._selected.has(song.id) ? 'var(--primary)' : 'transparent'}; border:2px solid ${this._selected.has(song.id) ? 'white' : 'var(--text-muted)'};">
                                             <input type="checkbox" class="hidden" ${this._selected.has(song.id) ? 'checked' : ''} data-select="${song.id}">
@@ -257,20 +271,27 @@ const LibraryPage = {
     _bindEvents() {
         document.getElementById('sort-select')?.addEventListener('change', (e) => {
             this._sortBy = e.target.value;
-            this.render();
+            if (e.target.value === 'custom') {
+                const order = Store.get('songOrder');
+                if (!order) {
+                    const songs = Store.get('songs');
+                    Store.set('songOrder', songs.map(s => s.id));
+                }
+            }
+            this.render(true);
         });
 
         document.querySelectorAll('.view-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 this._viewMode = btn.dataset.view;
-                this.render();
+                this.render(true);
             });
         });
 
         document.getElementById('select-btn')?.addEventListener('click', () => {
             this._selectMode = !this._selectMode;
             this._selected.clear();
-            this.render();
+            this.render(true);
         });
 
         document.querySelectorAll('input[data-select]').forEach(cb => {
@@ -281,7 +302,7 @@ const LibraryPage = {
                 } else {
                     this._selected.delete(id);
                 }
-                this.render();
+                this.render(true);
             });
         });
 
@@ -305,7 +326,7 @@ const LibraryPage = {
         document.getElementById('batch-cancel')?.addEventListener('click', () => {
             this._selected.clear();
             this._selectMode = false;
-            this.render();
+            this.render(true);
         });
 
         const uploadBtn = document.getElementById('upload-btn');
@@ -331,12 +352,59 @@ const LibraryPage = {
                     } else {
                         this._selected.add(id);
                     }
-                    this.render();
+                    this.render(true);
                 } else {
                     if (e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
                     const id = el.dataset.songId;
                     if (id) this._playSong(id);
                 }
+            });
+        });
+
+        document.querySelectorAll('.song-card[draggable], .song-list-item[draggable]').forEach(el => {
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', el.dataset.songId);
+                el.style.opacity = '0.4';
+            });
+            el.addEventListener('dragend', () => {
+                el.style.opacity = '';
+                document.querySelectorAll('.song-card, .song-list-item').forEach(i => {
+                    i.style.border = '';
+                    i.classList.remove('drag-over');
+                });
+            });
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                document.querySelectorAll('.song-card, .song-list-item').forEach(i => {
+                    i.classList.remove('drag-over');
+                    i.style.border = '';
+                });
+                el.classList.add('drag-over');
+                el.style.border = '2px dashed var(--primary)';
+            });
+            el.addEventListener('dragleave', () => {
+                el.classList.remove('drag-over');
+                el.style.border = '';
+            });
+            el.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                el.style.border = '';
+                el.classList.remove('drag-over');
+                const fromId = e.dataTransfer.getData('text/plain');
+                const toId = el.dataset.songId;
+                if (!fromId || fromId === toId) return;
+                const songs = Store.get('songs');
+                const fromIdx = songs.findIndex(s => s.id === fromId);
+                const toIdx = songs.findIndex(s => s.id === toId);
+                if (fromIdx === -1 || toIdx === -1) return;
+                const reordered = [...songs];
+                const [moved] = reordered.splice(fromIdx, 1);
+                reordered.splice(toIdx, 0, moved);
+                Store.set('songOrder', reordered.map(s => s.id));
+                await Store.loadSongs();
+                this.render(true);
             });
         });
 

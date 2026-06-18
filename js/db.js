@@ -1,7 +1,7 @@
 class MusicDatabase {
     constructor() {
         this.dbName = 'MusicPlayerDB';
-        this.version = 3;
+        this.version = 4;
         this.db = null;
         this.stores = {
             songs: '++id, title, artist, album, duration, source_type, created_at, size, favorite',
@@ -10,6 +10,7 @@ class MusicDatabase {
             history: '++id, song_id, last_played, position',
             favorites: '++id, song_id, added_at',
             downloads: '++id, url, title, progress, status, song_id, created_at',
+            lyrics: '++id, song_id, plain_lyrics, synced_lyrics, fetched_at',
             settings: '++id, key, value'
         };
     }
@@ -349,6 +350,56 @@ class MusicDatabase {
     async detectDuplicates(fileSize, title) {
         const songs = await this.getAll('songs');
         return songs.filter(s => s.size === fileSize);
+    }
+
+    async saveLyrics(songId, plainLyrics, syncedLyrics) {
+        const existing = await this.getByIndex('lyrics', 'song_id', songId);
+        const data = { song_id: songId, plain_lyrics: plainLyrics || null, synced_lyrics: syncedLyrics || null, fetched_at: Date.now() };
+        if (existing.length > 0) {
+            data.id = existing[0].id;
+            await this.put('lyrics', data);
+        } else {
+            await this.add('lyrics', data);
+        }
+    }
+
+    async getLyrics(songId) {
+        const items = await this.getByIndex('lyrics', 'song_id', songId);
+        return items.length > 0 ? items[0] : null;
+    }
+
+    async deleteLyrics(songId) {
+        const items = await this.getByIndex('lyrics', 'song_id', songId);
+        for (const item of items) await this.delete('lyrics', item.id);
+    }
+
+    async searchLyricsOnline(artist, title, album, duration) {
+        try {
+            const params = new URLSearchParams({
+                artist_name: artist || '',
+                track_name: title || '',
+                album_name: album || '',
+                duration: Math.round(duration || 0)
+            });
+            const resp = await fetch(`https://lrclib.net/api/get?${params}`, { signal: AbortSignal.timeout(8000) });
+            if (!resp.ok) return null;
+            return await resp.json();
+        } catch (e) {
+            console.warn('Lyrics fetch failed:', e);
+            return null;
+        }
+    }
+
+    async searchLyricsByQuery(query) {
+        try {
+            const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(8000) });
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            return data;
+        } catch (e) {
+            console.warn('Lyrics search failed:', e);
+            return [];
+        }
     }
 }
 

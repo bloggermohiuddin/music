@@ -20,14 +20,21 @@ var Store = (function() {
         history: [],
         favorites: [],
         sidebarOpen: true,
+        sidebarPinned: false,
         playerExpanded: false,
         showMiniPlayer: false,
         theme: 'dark',
         equalizer: { 60: 0, 170: 0, 310: 0, 600: 0, 1000: 0, 3000: 0, 6000: 0, 12000: 0, 14000: 0, 16000: 0 },
         effects: { reverb: 0, echo: 0, bassBoost: 0 },
+        songOrder: null,
         sleepTimer: null,
         crossfade: 0,
-        lyrics: '',
+        queuePanelOpen: true,
+        carMode: false,
+        lyrics: null,
+        lyricsLoading: false,
+        lyricsError: null,
+        lyricsPanelOpen: false,
         storageInfo: { totalSize: 0, songCount: 0 },
         loading: false,
         notification: null,
@@ -152,10 +159,8 @@ var Store = (function() {
             var newIndex = currentIdx;
             if (index <= currentIdx) newIndex = Math.max(0, currentIdx - 1);
             if (newIndex >= queue.length) newIndex = 0;
-            _state.queue = queue;
-            _state.queueIndex = newIndex;
-            _notify('queue', queue, null);
-            _notify('queueIndex', newIndex, currentIdx);
+            this.set('queue', queue);
+            this.set('queueIndex', newIndex);
         },
 
         clearQueue: function() {

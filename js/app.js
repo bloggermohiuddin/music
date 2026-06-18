@@ -29,6 +29,10 @@
     await Theme.init();
     console.log('Theme initialized');
 
+    if (Store.get('carMode')) {
+        document.body.classList.add('car-mode');
+    }
+
     await Store.refreshAll();
     console.log('Store refreshed');
 
@@ -56,8 +60,11 @@
             await HeaderComponent.render();
             await SidebarComponent.render();
             await MiniPlayerComponent.render();
-            if (window.innerWidth <= 1024) {
+            const isMobile = window.innerWidth <= 1024;
+            if (isMobile) {
                 Store.set('sidebarOpen', false);
+            } else if (!Store.get('sidebarPinned')) {
+                Store.set('sidebarOpen', true);
             }
         } catch (e) {
             console.error('Error rendering layout:', e);
@@ -70,75 +77,6 @@
             Router.setCleanup(() => HomePage.cleanup());
             await HomePage.render();
         } catch (e) { console.error('HomePage error:', e); }
-    });
-
-    Router.addRoute('/library', async () => {
-        try {
-            document.title = 'Audivo - Library';
-            Router.setCleanup(() => LibraryPage.cleanup());
-            await LibraryPage.render();
-        } catch (e) { console.error('LibraryPage error:', e); }
-    });
-
-    Router.addRoute('/player', async () => {
-        try {
-            document.title = 'Audivo - Now Playing';
-            Router.setCleanup(() => PlayerPage.cleanup());
-            await PlayerPage.render();
-        } catch (e) { console.error('PlayerPage error:', e); }
-    });
-
-    Router.addRoute('/search', async () => {
-        try {
-            document.title = 'Audivo - Search';
-            Router.setCleanup(() => SearchPage.cleanup());
-            await SearchPage.render();
-        } catch (e) { console.error('SearchPage error:', e); }
-    });
-
-    Router.addRoute('/downloads', async () => {
-        try {
-            document.title = 'Audivo - Downloads';
-            Router.setCleanup(() => DownloadsPage.cleanup());
-            await DownloadsPage.render();
-        } catch (e) { console.error('DownloadsPage error:', e); }
-    });
-
-    Router.addRoute('/playlists', async () => {
-        try {
-            document.title = 'Audivo - Playlists';
-            Router.setCleanup(() => PlaylistsPage.cleanup());
-            await PlaylistsPage.render();
-        } catch (e) { console.error('PlaylistsPage error:', e); }
-    });
-
-    Router.addRoute('/playlist/:id', async (params) => {
-        try {
-            document.title = 'Audivo - Playlist';
-            await PlaylistDetailPage.render(params);
-        } catch (e) { console.error('PlaylistDetailPage error:', e); }
-    });
-
-    Router.addRoute('/settings', async () => {
-        try {
-            document.title = 'Audivo - Settings';
-            Router.setCleanup(() => SettingsPage.cleanup());
-            await SettingsPage.render();
-        } catch (e) { console.error('SettingsPage error:', e); }
-    });
-
-    Router.addRoute('/history', async () => {
-        try {
-            document.title = 'Audivo - History';
-            await HistoryPage.render();
-        } catch (e) { console.error('HistoryPage error:', e); }
-    });
-
-    Router.addRoute('/favorites', async () => {
-        try {
-            document.title = 'Audivo - Favorites';
-            await FavoritesPage.render();
-        } catch (e) { console.error('FavoritesPage error:', e); }
     });
 
     Router.addRoute('/library', async () => {
@@ -211,7 +149,13 @@
     });
 
     // Store subscriptions for reactive updates
-    Store.subscribe('currentSong', () => MiniPlayerComponent.render());
+    Store.subscribe('currentSong', () => {
+        MiniPlayerComponent.render();
+        Store.set('lyrics', null);
+        Store.set('lyricsError', null);
+        Store.set('lyricsLoading', false);
+        if (window.PlayerPage) PlayerPage._stopLyricsSync();
+    });
     Store.subscribe('isPlaying', () => {
         MiniPlayerComponent.updatePlayButton();
         if (Router.getCurrentPath() === '/player') {
@@ -320,7 +264,11 @@
         var nowMobile = window.innerWidth <= 1024;
         if (nowMobile !== lastWasMobile) {
             lastWasMobile = nowMobile;
-            Store.set('sidebarOpen', !nowMobile);
+            if (nowMobile) {
+                Store.set('sidebarOpen', false);
+            } else {
+                Store.set('sidebarOpen', Store.get('sidebarPinned') || true);
+            }
             SidebarComponent.render().then(function() {
                 _applySidebarState(Store.get('sidebarOpen'));
             });

@@ -19,7 +19,7 @@ const PlayerPage = {
 
         el.innerHTML = `
             <div class="h-full flex flex-col pb-28 md:pb-32">
-                <div class="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 p-4 md:p-8">
+                <div class="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 p-4 md:p-8 ${Store.get('carMode') ? 'scale-110' : ''}">
                     <div class="w-full max-w-md md:w-80 lg:w-96">
                         <div class="relative aspect-square rounded-2xl overflow-hidden shadow-2xl" style="background:var(--surface); box-shadow:0 20px 60px var(--shadow);">
                             ${song?.thumbnail 
@@ -37,7 +37,7 @@ const PlayerPage = {
                         </div>
 
                         <div id="waveform-container" class="h-16 md:h-20 mb-4 rounded-xl overflow-hidden" style="background:var(--surface);">
-                            <canvas id="waveform-canvas" width="600" height="80" class="w-full h-full"></canvas>
+                            <canvas id="waveform-canvas" class="w-full h-full"></canvas>
                         </div>
 
                         <div class="mb-2">
@@ -52,7 +52,7 @@ const PlayerPage = {
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-center gap-3 md:gap-4 mb-4">
+                        <div class="flex items-center justify-center gap-3 md:gap-4 mb-4 ${Store.get('carMode') ? 'scale-125 my-6' : ''}">
                             <button id="btn-shuffle" class="p-2 rounded-full transition-all duration-200" style="color:${shuffle ? 'var(--primary)' : 'var(--text-secondary)'};">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
@@ -94,8 +94,10 @@ const PlayerPage = {
                             </div>
                         </div>
 
-                        ${!song ? '' : `
-                        <div class="mt-4 flex items-center gap-2">
+                        <div class="mt-4 flex items-center gap-2 ${Store.get('carMode') ? 'scale-125' : ''}">
+                            <button id="btn-car-mode" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-200" style="background:var(--surface); color:${Store.get('carMode') ? 'var(--primary)' : 'var(--text-secondary)'}; border:1px solid var(--border);" title="Car Mode">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                            </button>
                             <button onclick="PlayerPage._toggleFav('${song.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-200" style="background:var(--surface); color:${song.favorite ? 'var(--primary)' : 'var(--text-secondary)'}; border:1px solid var(--border);">
                                 <svg class="w-3.5 h-3.5" fill="${song.favorite ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                                 ${song.favorite ? 'Favorited' : 'Favorite'}
@@ -104,25 +106,33 @@ const PlayerPage = {
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                 Add to Queue
                             </button>
+                            <button onclick="PlayerPage._toggleLyrics()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-200" style="background:var(--surface); color:${Store.get('lyricsPanelOpen') ? 'var(--primary)' : 'var(--text-secondary)'}; border:1px solid var(--border);">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4H6l-1 0a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2v-2.5M18 13.5l-7 7M13.5 4v4a2 2 0 002 2h4M13.5 4L18 8.5"/></svg>
+                                Lyrics
+                            </button>
                         </div>
                         `}
 
                         <div id="sleep-timer-section" class="mt-4">
                             ${this._renderSleepTimer()}
                         </div>
+
+                        <div id="lyrics-section" class="mt-4 ${Store.get('lyricsPanelOpen') ? '' : 'hidden'}">
+                            ${this._renderLyrics()}
+                        </div>
                     </div>
                 </div>
 
                 <div id="queue-panel" class="px-4 md:px-8 pb-4">
                     <button id="toggle-queue" class="flex items-center gap-2 text-sm font-medium mb-2" style="color:var(--text-secondary);">
-                        <svg id="queue-arrow" class="w-4 h-4 transition-transform duration-200 ${queue.length > 0 ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg id="queue-arrow" class="w-4 h-4 transition-transform duration-200 ${(Store.get('queuePanelOpen') ? 'rotate-90' : '')}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         Queue (${queue.length})
                     </button>
                     <div id="queue-actions" class="flex gap-1.5 mb-2 ${queue.length > 0 ? '' : 'hidden'}">
                         <button id="btn-shuffle-all" class="px-2.5 py-1 rounded-lg text-xs transition-all hover:scale-105" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Shuffle All</button>
                         <button id="btn-sort-queue" class="px-2.5 py-1 rounded-lg text-xs transition-all hover:scale-105" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">A-Z</button>
                     </div>
-                    <div id="queue-list" class="${queue.length > 0 ? '' : 'hidden'} space-y-1 max-h-40 overflow-y-auto">
+                    <div id="queue-list" class="${(queue.length > 0 && Store.get('queuePanelOpen') ? '' : 'hidden')} space-y-1 max-h-40 overflow-y-auto">
                         ${queue.map((s, i) => `
                             <div class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${i === Store.get('queueIndex') ? 'active' : ''} transition-all queue-item cursor-pointer"
                                 draggable="true"
@@ -165,6 +175,12 @@ const PlayerPage = {
             this.render();
         });
 
+        document.getElementById('btn-car-mode')?.addEventListener('click', () => {
+            const enabled = !Store.get('carMode');
+            Store.set('carMode', enabled);
+            document.body.classList.toggle('car-mode', enabled);
+            this.render();
+        });
         document.getElementById('btn-volume')?.addEventListener('click', () => Player.toggleMute());
 
         const volumeSlider = document.getElementById('volume-slider');
@@ -200,12 +216,12 @@ const PlayerPage = {
         }
 
         document.getElementById('toggle-queue')?.addEventListener('click', () => {
+            const open = !Store.get('queuePanelOpen');
+            Store.set('queuePanelOpen', open);
             const list = document.getElementById('queue-list');
             const arrow = document.getElementById('queue-arrow');
-            if (list) {
-                list.classList.toggle('hidden');
-                if (arrow) arrow.classList.toggle('rotate-90');
-            }
+            if (list) list.classList.toggle('hidden', !open);
+            if (arrow) arrow.classList.toggle('rotate-90', open);
         });
 
         document.getElementById('btn-shuffle-all')?.addEventListener('click', () => {
@@ -233,34 +249,47 @@ const PlayerPage = {
     _startWaveformDrawing() {
         const canvas = document.getElementById('waveform-canvas');
         if (!canvas) return;
+        const container = canvas.parentElement;
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
         const ctx = canvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
         const peaks = new Float32Array(128).fill(0);
         let lastTime = 0;
+
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
 
         const draw = (time) => {
             const dt = Math.min((time - lastTime) / 1000, 0.1);
             lastTime = time;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, w, h);
 
             const data = Player.getWaveformData();
             const isPlaying = Store.get('isPlaying');
             if (data && data.length > 0) {
                 const barCount = Math.min(data.length, 64);
                 const gap = 3;
-                const barWidth = (canvas.width - gap * barCount) / barCount;
+                const barWidth = (w - gap * barCount) / barCount;
                 const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#1db954';
 
                 for (let i = 0; i < barCount; i++) {
                     const value = data[i] || 0;
-                    const h = (value / 255) * canvas.height * 0.85;
+                    const barH = (value / 255) * h * 0.85;
 
-                    if (h > peaks[i]) peaks[i] = h;
+                    if (barH > peaks[i]) peaks[i] = barH;
                     else peaks[i] = Math.max(0, peaks[i] - dt * 200);
 
                     const x = i * (barWidth + gap);
                     const radius = Math.min(barWidth / 2, 4);
 
-                    const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - h);
+                    const gradient = ctx.createLinearGradient(0, h, 0, h - barH);
                     gradient.addColorStop(0, primary + '30');
                     gradient.addColorStop(0.5, primary + 'aa');
                     gradient.addColorStop(1, primary);
@@ -268,21 +297,21 @@ const PlayerPage = {
 
                     if (barWidth > 2 * radius) {
                         ctx.beginPath();
-                        ctx.moveTo(x + radius, canvas.height - h);
-                        ctx.lineTo(x + barWidth - radius, canvas.height - h);
-                        ctx.quadraticCurveTo(x + barWidth, canvas.height - h, x + barWidth, canvas.height - h + radius);
-                        ctx.lineTo(x + barWidth, canvas.height);
-                        ctx.lineTo(x, canvas.height);
-                        ctx.lineTo(x, canvas.height - h + radius);
-                        ctx.quadraticCurveTo(x, canvas.height - h, x + radius, canvas.height - h);
+                        ctx.moveTo(x + radius, h - barH);
+                        ctx.lineTo(x + barWidth - radius, h - barH);
+                        ctx.quadraticCurveTo(x + barWidth, h - barH, x + barWidth, h - barH + radius);
+                        ctx.lineTo(x + barWidth, h);
+                        ctx.lineTo(x, h);
+                        ctx.lineTo(x, h - barH + radius);
+                        ctx.quadraticCurveTo(x, h - barH, x + radius, h - barH);
                         ctx.fill();
                     } else {
-                        ctx.fillRect(x, canvas.height - h, barWidth, h);
+                        ctx.fillRect(x, h - barH, barWidth, barH);
                     }
 
                     if (peaks[i] > 4) {
                         ctx.fillStyle = primary;
-                        ctx.fillRect(x, canvas.height - peaks[i] - 3, barWidth, 2);
+                        ctx.fillRect(x, h - peaks[i] - 3, barWidth, 2);
                     }
                 }
             }
@@ -469,6 +498,209 @@ const PlayerPage = {
         this._startSleepCountdown();
     },
 
+    _toggleLyrics() {
+        const open = !Store.get('lyricsPanelOpen');
+        Store.set('lyricsPanelOpen', open);
+        const section = document.getElementById('lyrics-section');
+        if (section) {
+            section.classList.toggle('hidden', !open);
+            if (open) {
+                section.innerHTML = this._renderLyrics();
+                this._loadLyrics();
+            }
+        }
+    },
+
+    _renderLyrics() {
+        const lyrics = Store.get('lyrics');
+        const loading = Store.get('lyricsLoading');
+        const error = Store.get('lyricsError');
+        const song = Store.get('currentSong');
+
+        if (!song) return '';
+
+        if (loading) {
+            return `<div class="text-center py-8"><div class="w-6 h-6 mx-auto" style="border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div><p class="text-xs mt-2" style="color:var(--text-muted);">Loading lyrics...</p></div>`;
+        }
+
+        if (error) {
+            return `<div class="text-center py-6"><p class="text-sm" style="color:var(--text-muted);">${error}</p></div>`;
+        }
+
+        if (!lyrics) {
+            return `<div class="text-center py-6"><p class="text-sm" style="color:var(--text-muted);">No lyrics found. Tap to search.</p><button onclick="PlayerPage._loadLyrics()" class="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Search Lyrics</button></div>`;
+        }
+
+        // Synced lyrics
+        if (lyrics.lines && lyrics.lines.length > 0) {
+            const currentTime = Store.get('currentTime');
+            const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
+            const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
+            return `
+                <div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;" id="lyrics-container">
+                    <div class="p-4 space-y-3" id="lyrics-list">
+                        ${lyrics.lines.map((line, i) => `
+                            <div class="lyric-line text-sm transition-all duration-300 ${i === activeIdx ? 'active-lyric' : ''}" 
+                                data-lyric-idx="${i}"
+                                style="color:${i === activeIdx ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight:${i === activeIdx ? '600' : '400'};">
+                                ${Utils.htmlEncode(line.text)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Plain lyrics
+        if (lyrics.plain) {
+            return `
+                <div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;">
+                    <div class="p-4 text-sm whitespace-pre-line" style="color:var(--text-secondary); line-height:1.8;">
+                        ${Utils.htmlEncode(lyrics.plain)}
+                    </div>
+                </div>
+            `;
+        }
+
+        return '';
+    },
+
+    async _loadLyrics() {
+        const song = Store.get('currentSong');
+        if (!song) return;
+
+        Store.set('lyricsLoading', true);
+        Store.set('lyricsError', null);
+
+        try {
+            // Check local DB first
+            const local = await DB.getLyrics(song.id);
+            if (local) {
+                const parsed = local.synced_lyrics ? this._parseLRC(local.synced_lyrics) : null;
+                Store.set('lyrics', {
+                    plain: local.plain_lyrics,
+                    synced: local.synced_lyrics,
+                    lines: parsed
+                });
+                Store.set('lyricsLoading', false);
+                if (parsed) this._startLyricsSync();
+                const section = document.getElementById('lyrics-section');
+                if (section) section.innerHTML = this._renderLyrics();
+                return;
+            }
+
+            // Fetch from lrclib.net
+            const result = await DB.searchLyricsOnline(song.artist, song.title, song.album, song.duration);
+            if (result && (result.plainLyrics || result.syncedLyrics)) {
+                const parsed = result.syncedLyrics ? this._parseLRC(result.syncedLyrics) : null;
+                Store.set('lyrics', {
+                    plain: result.plainLyrics || null,
+                    synced: result.syncedLyrics || null,
+                    lines: parsed
+                });
+                await DB.saveLyrics(song.id, result.plainLyrics || null, result.syncedLyrics || null);
+                if (parsed) this._startLyricsSync();
+            } else {
+                // Try search fallback
+                const query = `${song.artist} ${song.title}`;
+                const results = await DB.searchLyricsByQuery(query);
+                if (results && results.length > 0) {
+                    const best = results[0];
+                    const detail = best.id ? await DB.searchLyricsOnline(song.artist, song.title, song.album, song.duration) : null;
+                    if (detail && (detail.plainLyrics || detail.syncedLyrics)) {
+                        const parsed = detail.syncedLyrics ? this._parseLRC(detail.syncedLyrics) : null;
+                        Store.set('lyrics', {
+                            plain: detail.plainLyrics || null,
+                            synced: detail.syncedLyrics || null,
+                            lines: parsed
+                        });
+                        await DB.saveLyrics(song.id, detail.plainLyrics || null, detail.syncedLyrics || null);
+                        if (parsed) this._startLyricsSync();
+                    } else {
+                        Store.set('lyricsError', 'No lyrics available for this song');
+                    }
+                } else {
+                    Store.set('lyricsError', 'No lyrics found on lrclib.net');
+                }
+            }
+        } catch (e) {
+            console.warn('Lyrics load error:', e);
+            Store.set('lyricsError', 'Failed to load lyrics');
+        }
+        Store.set('lyricsLoading', false);
+        const section = document.getElementById('lyrics-section');
+        if (section) section.innerHTML = this._renderLyrics();
+    },
+
+    _parseLRC(lrcText) {
+        if (!lrcText) return null;
+        const lines = lrcText.split('\n');
+        const parsed = [];
+        for (const line of lines) {
+            const match = line.match(/\[(\d+):(\d+)(?:\.(\d+))?\](.*)/);
+            if (match) {
+                const minutes = parseInt(match[1]);
+                const seconds = parseInt(match[2]);
+                const centiseconds = parseInt(match[3] || '0');
+                const time = minutes * 60 + seconds + centiseconds / 100;
+                const text = match[4].trim();
+                if (text) parsed.push({ time, text });
+            }
+        }
+        return parsed.length > 0 ? parsed.sort((a, b) => a.time - b.time) : null;
+    },
+
+    _startLyricsSync() {
+        this._stopLyricsSync();
+        this._lyricsSyncFrame = requestAnimationFrame(this._updateLyricLine.bind(this));
+    },
+
+    _stopLyricsSync() {
+        if (this._lyricsSyncFrame) {
+            cancelAnimationFrame(this._lyricsSyncFrame);
+            this._lyricsSyncFrame = null;
+        }
+    },
+
+    _updateLyricLine() {
+        const lyrics = Store.get('lyrics');
+        const currentTime = Store.get('currentTime');
+        const container = document.getElementById('lyrics-container');
+        if (!lyrics || !lyrics.lines || lyrics.lines.length === 0 || !container) {
+            this._stopLyricsSync();
+            return;
+        }
+
+        const isPlaying = Store.get('isPlaying');
+        const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
+        const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
+
+        document.querySelectorAll('.lyric-line').forEach((el, i) => {
+            const isActive = i === activeIdx;
+            if (isActive) {
+                el.style.color = 'var(--primary)';
+                el.style.fontWeight = '600';
+                el.classList.add('active-lyric');
+            } else {
+                el.style.color = 'var(--text-secondary)';
+                el.style.fontWeight = '400';
+                el.classList.remove('active-lyric');
+            }
+        });
+
+        const activeEl = document.querySelector(`.lyric-line[data-lyric-idx="${activeIdx}"]`);
+        if (activeEl) {
+            const containerRect = container.getBoundingClientRect();
+            const elRect = activeEl.getBoundingClientRect();
+            const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+            container.scrollTop += offset * 0.1;
+        }
+
+        if (isPlaying) {
+            this._lyricsSyncFrame = requestAnimationFrame(this._updateLyricLine.bind(this));
+        }
+    },
+
     _initQueueDragDrop() {
         let dragSrcIdx = null;
         document.querySelectorAll('.queue-item').forEach(el => {
@@ -530,6 +762,7 @@ const PlayerPage = {
 
     cleanup() {
         this._stopWaveformDrawing();
+        this._stopLyricsSync();
         if (this._sleepCountdownInterval) clearInterval(this._sleepCountdownInterval);
         this._unsubs.forEach(u => u());
         this._unsubs = [];

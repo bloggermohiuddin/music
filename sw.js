@@ -1,4 +1,4 @@
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '2.0.0';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
@@ -53,7 +53,10 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((name) => {
-                    if (name !== STATIC_CACHE && name !== AUDIO_CACHE && name !== THUMB_CACHE && name !== CACHE_NAME) {
+                    if (name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME && name !== STATIC_CACHE && name !== AUDIO_CACHE && name !== THUMB_CACHE) {
+                        return caches.delete(name);
+                    }
+                    if (!name.startsWith(CACHE_PREFIX) && name.startsWith('music-') && name !== STATIC_CACHE && name !== AUDIO_CACHE && name !== THUMB_CACHE) {
                         return caches.delete(name);
                     }
                 })

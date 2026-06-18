@@ -23,21 +23,24 @@
 ### Core
 - **SPA Architecture** — No page reloads. History API navigation with pushState. Browser refresh preserves current route.
 - **Offline-First** — All songs stored as blobs in IndexedDB. Service Worker caches everything. Works in airplane mode.
-- **Installable PWA** — Web App Manifest, Service Worker, standalone mode, lock screen controls.
+- **Installable PWA** — Web App Manifest, Service Worker, standalone mode, lock screen controls, home screen widget.
 - **PWA Auto-Update** — Versioned caches with skip-waiting. Check for Updates in settings compares versions and reloads automatically.
 - **PWA Home Screen Widget** — Now Playing widget with artwork, playback controls, seek bar. BroadcastChannel communication with main app.
-- **5 Themes** — Dark, Pure Black OLED, Light, Glassmorphism, Neon.
+- **Car Mode** — Larger controls and simplified UI optimized for driving. Toggle from player or settings.
+- **12 Themes** — Dark, Pure Black OLED, Light, Glassmorphism, Neon, Forest, Ocean, Sunset, Midnight, Dracula, Cyberpunk, Sepia.
 
 ### Music Library
 - Upload MP3, M4A, WAV, AAC, OGG, FLAC
 - Automatic metadata extraction (title, artist, album, duration, embedded thumbnail)
 - Drag-and-drop upload support
 - Duplicate detection
-- Grid / List / Artist view with sorting (date, title, artist, duration)
+- Grid / List / Artist view with sorting (date, title, artist, duration, custom)
 - **Now playing indicator** — animated bars on currently playing song
 - **Edit song details** — rename title, artist, album, change thumbnail (upload from device or paste URL)
 - **Single song delete** — right-click context menu or long-press
 - **Batch select** — multi-select and delete multiple songs at once
+- **Drag-to-reorder songs** — reorder library songs by drag-and-drop (custom sort mode)
+- **Scroll position preservation** — scroll position is maintained when toggling sort/view
 - **Real-time updates** — library, home, favorites, history update immediately after edit/delete
 
 ### YouTube Download
@@ -65,10 +68,10 @@
 - **Sort queue A–Z** — sort queue alphabetically
 - **Play Next** — insert song right after current track
 - **Auto-update player page** — player UI updates when song changes via auto-next
-- **Audio visualizer** — rounded bars with gradient, peak dots that slowly fall, 64 frequency bars
-- Crossfade (0–12 seconds)
+- **Audio visualizer** — rounded bars with gradient, peak dots that slowly fall, 64 frequency bars (HiDPI support)
+- Crossfade (0–12 seconds) — respects user volume setting
 - Fade in / Fade out
-- **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown
+- **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown; auto-adjusts to track length
 - Media Session API (lock screen controls)
 
 ### Audio Effects
@@ -83,6 +86,15 @@
 - Bass boost / Treble boost presets
 - Flat reset
 - Real-time Web Audio API BiquadFilter processing
+
+### Lyrics (Synced & Plain)
+- **Auto-fetch** — retrieves lyrics from [lrclib.net](https://lrclib.net) API by artist, title, album, and duration
+- **Synced lyrics** — timed LRC format with real-time line highlighting that follows playback
+- **Plain lyrics** — fallback display for non-timed lyrics
+- **Local caching** — fetched lyrics are saved in IndexedDB for offline access
+- **Search fallback** — if exact match fails, searches lrclib and picks best result
+- **Auto-scroll** — active lyric line stays centered in the lyrics container
+- **Lyrics toggle** — show/hide lyrics panel from the player page
 
 ### Playlist System
 - Create, rename, delete playlists
@@ -101,11 +113,18 @@
 - Real-time instant search by title, artist, album
 - Debounced input
 
+### Sidebar
+- Main navigation: Home, Library, Search, Playlists
+- Quick links: History, Favorites, Downloads
+- Dynamic playlist list with create button
+- **Pin sidebar** — pin sidebar open on desktop to prevent auto-collapse
+
 ### Settings
 - Volume control
 - Crossfade duration
 - Default playback speed
 - Default repeat / shuffle
+- **Car Mode** toggle
 - **10-band Equalizer** with presets
 - **Audio Effects** — reverb, echo, bass boost sliders with reset
 - **Listening Stats** — total songs played, listen time, top 5 artists bar chart, last 7 days history chart
@@ -114,6 +133,7 @@
 - Cache clear
 - Export / Import full database as JSON backup
 - Reset all settings
+- **Reload App** — button to refresh the application
 
 ### Storage Management
 - View total song count, size, thumbnails
@@ -150,7 +170,7 @@
 | HTML5 | Structure |
 | Tailwind CSS (CDN) | Styling |
 | Vanilla JS (ES6+) | Logic |
-| IndexedDB | Large blob storage |
+| IndexedDB | Large blob storage (songs, playlists, lyrics, settings) |
 | Service Worker | Offline caching + versioned updates |
 | Cache API | Static asset caching |
 | Web App Manifest | PWA installation |
@@ -159,6 +179,7 @@
 | BroadcastChannel | PWA widget communication |
 | Media Session API | Lock screen controls |
 | Web Workers | Background tasks |
+| [lrclib.net API](https://lrclib.net/docs) | Lyrics fetching (synced LRC + plain text) |
 
 ---
 
@@ -168,13 +189,10 @@
 ├── index.html              # Entry point with Tailwind CSS
 ├── widget.html             # PWA now-playing widget page
 ├── manifest.json           # PWA manifest (shortcuts + widgets)
-├── sw.js                   # Service Worker (versioned caches, v1.0.3)
+├── sw.js                   # Service Worker (versioned caches, v2.0.0)
 ├── serve.json              # Static server config
 ├── .gitignore              # Git ignore rules
 ├── .htaccess               # Apache SPA rewrite
-├── php/
-│   ├── api.php             # YouTube download API proxy
-│   └── search.php          # YouTube search API proxy (CORS)
 ├── icons/
 │   ├── icon.png            # App icon (PNG)
 │   ├── icon.svg            # App icon (SVG)
@@ -187,22 +205,22 @@
     ├── app.js              # Bootstrap, init, SW registration, keyboard shortcuts
     ├── router.js           # History API SPA router
     ├── store.js            # Observable state management
-    ├── db.js               # IndexedDB wrapper (7 stores)
-    ├── player.js           # Audio player + Web Audio API + equalizer + effects (reverb/echo/bass boost) + widget
-    ├── theme.js            # Theme engine (5 themes)
+    ├── db.js               # IndexedDB wrapper (9 stores including lyrics)
+    ├── player.js           # Audio player + Web Audio API + equalizer + effects + widget
+    ├── theme.js            # Theme engine (12 themes)
     ├── utils.js            # Utility functions + modal dialogs
     ├── worker.js           # Web Worker
     └── components/
         ├── header.js       # Top navigation bar
-        ├── sidebar.js      # Sidebar navigation
+        ├── sidebar.js      # Sidebar navigation with pin support
         ├── miniplayer.js   # Bottom mini player
         ├── home.js         # Dashboard page
-        ├── library.js      # Music library (grid/list/artist, batch select)
+        ├── library.js      # Music library (grid/list/artist, batch select, drag-reorder)
         ├── search.js       # Search page
-        ├── player.js       # Fullscreen player page + visualizer + sleep timer
+        ├── player.js       # Fullscreen player + visualizer + sleep timer + lyrics panel
         ├── downloads.js    # YouTube search/download + upload
         ├── playlists.js    # Playlist management + add songs with search
-        ├── settings.js     # Settings + equalizer + effects + listening stats + update checker
+        ├── settings.js     # Settings + EQ + effects + stats + update checker + car mode
         ├── history.js      # Recently played page
         ├── favorites.js    # Favorites page
         └── contextmenu.js  # Right-click/long-press context menu + edit modal
@@ -251,14 +269,14 @@ User selects file → FileReader → extractMetadata() → Blob → IndexedDB (s
 User pastes URL or types search → POST to PHP proxy → get MP3 link → fetch() → Blob → IndexedDB (permanent)
 ```
 
-### YouTube Search Flow
-```
-User types search term → POST to search.php → embed.dlsrv.online/api/search → grid results with thumbnails
-```
-
 ### Offline Playback
 ```
 Song blob in IndexedDB → URL.createObjectURL() → HTML5 Audio element → plays offline
+```
+
+### Lyrics Fetch Flow
+```
+Player page → click Lyrics → check IndexedDB cache → if miss → fetch lrclib.net/api/get → save to IndexedDB → parse LRC timestamps → highlight active line
 ```
 
 ### PWA Update Flow
@@ -287,6 +305,13 @@ All data survives browser refresh, tab closure, and offline mode. Everything is 
 ---
 
 ## API Reference
+
+### Lyrics API (lrclib.net)
+```
+GET https://lrclib.net/api/get?artist_name={artist}&track_name={title}&album_name={album}&duration={duration}
+
+GET https://lrclib.net/api/search?q={query}
+```
 
 ### YouTube Download Endpoint
 ```
@@ -368,14 +393,15 @@ Contributions are welcome! Here's how you can help:
 5. **Open** a Pull Request
 
 ### Ideas for Contributions
-- Lyrics display (synced LRC files)
 - Audio normalization (auto-level volume across songs)
 - Gapless playback (no silence between tracks)
 - Import playlists from CSV/JSON
-- PWA offline indicator banner
 - AirPlay / Chromecast support
 - Keyboard shortcut customization
 - Unit tests
+- Smart playlists ("Most Played", "Recently Added", "Unplayed")
+- Podcast support with resume position
+- Last.fm / ListenBrainz scrobbling
 
 ### Report Bugs
 Found a bug? Please [open an issue](https://github.com/bloggermohiuddin/music/issues) with:
