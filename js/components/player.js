@@ -533,8 +533,8 @@ const PlayerPage = {
             return `<div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;">
                 <div class="p-2">
                     <p class="text-xs px-2 py-1 mb-1" style="color:var(--text-muted);">${results.length} results found — tap to select</p>
-                    ${results.map(r => `
-                        <button onclick="PlayerPage._selectLyrics(${r.id})" class="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:scale-[1.01]" style="color:var(--text-secondary); border:1px solid var(--border); margin-bottom:4px;">
+                    ${results.map((r, i) => `
+                        <button onclick="PlayerPage._selectLyrics(${i})" class="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:scale-[1.01]" style="color:var(--text-secondary); border:1px solid var(--border); margin-bottom:4px;">
                             <div class="font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.trackName || 'Unknown')}</div>
                             <div class="truncate" style="color:var(--text-muted);">${Utils.htmlEncode(r.artistName || '')} ${r.albumName ? '· ' + Utils.htmlEncode(r.albumName) : ''}</div>
                         </button>
@@ -549,7 +549,7 @@ const PlayerPage = {
         if (error) {
             return `<div class="text-center py-6">
                 <p class="text-sm mb-2" style="color:var(--text-muted);">${error}</p>
-                <button onclick="PlayerPage._loadLyrics()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Search Again</button>
+                <button onclick="PlayerPage._showSearchInput()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Try Again</button>
             </div>`;
         }
 
@@ -579,7 +579,7 @@ const PlayerPage = {
                 </div>
                 <div class="flex items-center justify-center gap-2 mt-2">
                     <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
-                    <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
                 </div>
             `;
         }
@@ -593,7 +593,7 @@ const PlayerPage = {
                 </div>
                 <div class="flex items-center justify-center gap-2 mt-2">
                     <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
-                    <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
                 </div>
             `;
         }
@@ -685,6 +685,13 @@ const PlayerPage = {
         this._loadLyrics(query);
     },
 
+    _showSearchInput() {
+        Store.set('lyrics', null);
+        Store.set('lyricsResults', null);
+        Store.set('lyricsError', null);
+        this._renderLyricsSection();
+    },
+
     _cleanTitleForSearch(title) {
         if (!title) return '';
         return title.replace(/\s*[|\-–—]\s*(?:lyrics?\s*(?:video|audio)?|official\s*(?:video|audio)?|music\s*video|feat\.?.*|ft\.?.*|\/\s*[^/]+)$/i, '').replace(/\s*[|\-–—]\s*[^|\-–—]+$/i, '').trim();
@@ -741,32 +748,25 @@ const PlayerPage = {
         }
     },
 
-    async _selectLyrics(lrcLibId) {
+    async _selectLyrics(index) {
         const song = Store.get('currentSong');
         if (!song) return;
 
-        this._lyricsLoading = true;
-        Store.set('lyricsLoading', true);
+        const results = Store.get('lyricsResults');
+        if (!results || !results[index]) return;
+
+        const selected = results[index];
+        const parsed = selected.syncedLyrics ? this._parseLRC(selected.syncedLyrics) : null;
+        Store.set('lyrics', { plain: selected.plainLyrics || null, synced: selected.syncedLyrics || null, lines: parsed });
         Store.set('lyricsResults', null);
-        this._renderLyricsSection();
 
         try {
-            const result = await DB.getLyricsById(lrcLibId);
-            if (result && (result.plainLyrics || result.syncedLyrics)) {
-                const parsed = result.syncedLyrics ? this._parseLRC(result.syncedLyrics) : null;
-                Store.set('lyrics', { plain: result.plainLyrics || null, synced: result.syncedLyrics || null, lines: parsed });
-                await DB.saveLyrics(song.id, result.plainLyrics || null, result.syncedLyrics || null);
-                if (parsed) this._startLyricsSync();
-            } else {
-                Store.set('lyricsError', 'Failed to load lyrics');
-            }
+            await DB.saveLyrics(song.id, selected.plainLyrics || null, selected.syncedLyrics || null);
         } catch (e) {
-            console.warn('Lyrics fetch error:', e);
-            Store.set('lyricsError', 'Failed to load lyrics');
+            console.warn('Failed to save lyrics:', e);
         }
 
-        Store.set('lyricsLoading', false);
-        this._lyricsLoading = false;
+        if (parsed) this._startLyricsSync();
         this._renderLyricsSection();
     },
 
