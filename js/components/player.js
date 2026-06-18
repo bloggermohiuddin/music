@@ -577,7 +577,8 @@ const PlayerPage = {
                         `).join('')}
                     </div>
                 </div>
-                <div class="text-center mt-2">
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
                     <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
                 </div>
             `;
@@ -590,7 +591,8 @@ const PlayerPage = {
                         ${Utils.htmlEncode(lyrics.plain)}
                     </div>
                 </div>
-                <div class="text-center mt-2">
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
                     <button onclick="Store.set('lyrics', null); Store.set('lyricsResults', null); PlayerPage._loadLyrics();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
                 </div>
             `;
@@ -602,6 +604,78 @@ const PlayerPage = {
     _renderLyricsSection() {
         const section = document.getElementById('lyrics-section');
         if (section) section.innerHTML = this._renderLyrics();
+    },
+
+    _toggleLyricsFullscreen() {
+        const existing = document.getElementById('lyrics-fullscreen-overlay');
+        if (existing) { existing.remove(); return; }
+
+        const lyrics = Store.get('lyrics');
+        if (!lyrics) return;
+
+        const song = Store.get('currentSong');
+        const overlay = document.createElement('div');
+        overlay.id = 'lyrics-fullscreen-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);';
+        header.innerHTML = `
+            <div class="truncate" style="color:var(--text);">
+                <div class="text-sm font-semibold truncate">${song ? Utils.htmlEncode(song.title) : ''}</div>
+                <div class="text-xs truncate" style="color:var(--text-muted);">${song ? Utils.htmlEncode(song.artist) : ''}</div>
+            </div>
+            <button id="close-lyrics-fullscreen" class="p-2 rounded-lg" style="color:var(--text-secondary);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        `;
+
+        const container = document.createElement('div');
+        container.id = 'lyrics-fullscreen-container';
+        container.style.cssText = 'flex:1;overflow-y:auto;scroll-behavior:smooth;';
+
+        if (lyrics.lines && lyrics.lines.length > 0) {
+            const currentTime = Store.get('currentTime');
+            const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
+            const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
+            container.innerHTML = `<div class="p-6 md:p-12 space-y-4" style="max-width:600px;margin:0 auto;">
+                ${lyrics.lines.map((line, i) => `
+                    <div class="lyric-line-fs text-lg md:text-2xl transition-all duration-300 ${i === activeIdx ? 'active-lyric-fs' : ''}" 
+                        data-lyric-idx="${i}"
+                        style="color:${i === activeIdx ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight:${i === activeIdx ? '700' : '400'}; line-height:1.6;">
+                        ${Utils.htmlEncode(line.text)}
+                    </div>
+                `).join('')}
+            </div>`;
+        } else if (lyrics.plain) {
+            container.innerHTML = `<div class="p-6 md:p-12 whitespace-pre-line text-lg md:text-2xl" style="max-width:600px;margin:0 auto;color:var(--text-secondary);line-height:1.8;">${Utils.htmlEncode(lyrics.plain)}</div>`;
+        }
+
+        overlay.appendChild(header);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+
+        document.getElementById('close-lyrics-fullscreen')?.addEventListener('click', () => overlay.remove());
+
+        const scrollActive = () => {
+            const active = container.querySelector('.active-lyric-fs');
+            if (active) {
+                const rect = active.getBoundingClientRect();
+                const cRect = container.getBoundingClientRect();
+                const offset = rect.top - cRect.top - cRect.height / 2 + rect.height / 2;
+                container.scrollBy({ top: offset, behavior: 'smooth' });
+            }
+        };
+        this._fullscreenScrollInterval = setInterval(scrollActive, 500);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        const observer = new MutationObserver(() => {
+            if (!document.getElementById('lyrics-fullscreen-overlay')) {
+                observer.disconnect();
+                clearInterval(this._fullscreenScrollInterval);
+            }
+        });
+        observer.observe(document.body, { childList: true });
     },
 
     _searchLyricsManual() {
@@ -730,8 +804,10 @@ const PlayerPage = {
         const lyrics = Store.get('lyrics');
         const currentTime = Store.get('currentTime');
         const container = document.getElementById('lyrics-container');
-        if (!lyrics || !lyrics.lines || lyrics.lines.length === 0 || !container) {
-            this._stopLyricsSync();
+        const fsOverlay = document.getElementById('lyrics-fullscreen-overlay');
+        const fsContainer = document.getElementById('lyrics-fullscreen-container');
+        if (!lyrics || !lyrics.lines || lyrics.lines.length === 0 || (!container && !fsOverlay)) {
+            if (!fsOverlay) this._stopLyricsSync();
             return;
         }
 
@@ -752,12 +828,37 @@ const PlayerPage = {
             }
         });
 
-        const activeEl = document.querySelector(`.lyric-line[data-lyric-idx="${activeIdx}"]`);
-        if (activeEl) {
-            const containerRect = container.getBoundingClientRect();
-            const elRect = activeEl.getBoundingClientRect();
-            const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
-            container.scrollTop += offset * 0.1;
+        document.querySelectorAll('.lyric-line-fs').forEach((el, i) => {
+            const isActive = i === activeIdx;
+            if (isActive) {
+                el.style.color = 'var(--primary)';
+                el.style.fontWeight = '700';
+                el.classList.add('active-lyric-fs');
+            } else {
+                el.style.color = 'var(--text-secondary)';
+                el.style.fontWeight = '400';
+                el.classList.remove('active-lyric-fs');
+            }
+        });
+
+        if (container) {
+            const activeEl = document.querySelector(`.lyric-line[data-lyric-idx="${activeIdx}"]`);
+            if (activeEl) {
+                const containerRect = container.getBoundingClientRect();
+                const elRect = activeEl.getBoundingClientRect();
+                const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+                container.scrollTop += offset * 0.1;
+            }
+        }
+
+        if (fsContainer) {
+            const activeEl = fsContainer.querySelector(`.lyric-line-fs[data-lyric-idx="${activeIdx}"]`);
+            if (activeEl) {
+                const containerRect = fsContainer.getBoundingClientRect();
+                const elRect = activeEl.getBoundingClientRect();
+                const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+                fsContainer.scrollBy({ top: offset * 0.3, behavior: 'smooth' });
+            }
         }
 
         if (isPlaying) {
@@ -828,6 +929,9 @@ const PlayerPage = {
         this._stopWaveformDrawing();
         this._stopLyricsSync();
         this._lyricsLoading = false;
+        if (this._fullscreenScrollInterval) clearInterval(this._fullscreenScrollInterval);
+        const fsOverlay = document.getElementById('lyrics-fullscreen-overlay');
+        if (fsOverlay) fsOverlay.remove();
         if (this._sleepCountdownInterval) clearInterval(this._sleepCountdownInterval);
         this._unsubs.forEach(u => u());
         this._unsubs = [];
