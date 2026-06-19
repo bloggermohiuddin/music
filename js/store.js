@@ -34,6 +34,7 @@ var Store = (function() {
         lyrics: null,
         lyricsLoading: false,
         lyricsResults: null,
+        lyricsPasteMode: false,
         lyricsError: null,
         lyricsPanelOpen: false,
         storageInfo: { totalSize: 0, songCount: 0 },

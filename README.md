@@ -88,13 +88,18 @@
 - Real-time Web Audio API BiquadFilter processing
 
 ### Lyrics (Synced & Plain)
-- **Auto-fetch** — retrieves lyrics from [lrclib.net](https://lrclib.net) API by artist, title, album, and duration
-- **Synced lyrics** — timed LRC format with real-time line highlighting that follows playback
-- **Plain lyrics** — fallback display for non-timed lyrics
-- **Local caching** — fetched lyrics are saved in IndexedDB for offline access
-- **Search fallback** — if exact match fails, searches lrclib and picks best result
-- **Auto-scroll** — active lyric line stays centered in the lyrics container
-- **Lyrics toggle** — show/hide lyrics panel from the player page
+- **Manual search** — shows input with track name pre-filled; user edits query then taps Search
+- **Paste lyrics** — paste LRC (synced) or plain text directly from clipboard
+- **Result picker** — browse search results with Synced/Plain badges before applying
+- **Synced lyrics** — timed LRC format with smooth real-time line highlighting (opacity, scale, glow)
+- **Active line glow** — highlighted line uses theme primary color with text-shadow glow effect
+- **Dimmed inactive lines** — non-active lines dimmed to 40% opacity, adjacent lines at 70%
+- **Auto-scroll** — active lyric line smoothly centered in container
+- **Fullscreen lyrics** — tap Fullscreen for immersive lyrics view; close via X button, click outside, or ESC key
+- **Auto-close fullscreen** — fullscreen overlay closes automatically when song changes
+- **Search again / Change** — re-open input to search different query or paste new lyrics
+- **Local caching** — lyrics saved in IndexedDB for offline access
+- **YouTube title cleanup** — strips "| Artist | Channel" suffixes before lyrics search
 
 ### Playlist System
 - Create, rename, delete playlists
@@ -160,6 +165,7 @@
 | `P` | Previous track |
 | `M` | Mute toggle |
 | `F` | Fullscreen toggle |
+| `Esc` | Close fullscreen lyrics overlay |
 
 ---
 
@@ -189,7 +195,7 @@
 ├── index.html              # Entry point with Tailwind CSS
 ├── widget.html             # PWA now-playing widget page
 ├── manifest.json           # PWA manifest (shortcuts + widgets)
-├── sw.js                   # Service Worker (versioned caches, v2.0.0)
+├── sw.js                   # Service Worker (versioned caches, v2.2.0)
 ├── serve.json              # Static server config
 ├── .gitignore              # Git ignore rules
 ├── .htaccess               # Apache SPA rewrite
@@ -217,7 +223,7 @@
         ├── home.js         # Dashboard page
         ├── library.js      # Music library (grid/list/artist, batch select, drag-reorder)
         ├── search.js       # Search page
-        ├── player.js       # Fullscreen player + visualizer + sleep timer + lyrics panel
+        ├── player.js       # Fullscreen player + visualizer + sleep timer + lyrics panel + fullscreen overlay
         ├── downloads.js    # YouTube search/download + upload
         ├── playlists.js    # Playlist management + add songs with search
         ├── settings.js     # Settings + EQ + effects + stats + update checker + car mode
@@ -276,7 +282,11 @@ Song blob in IndexedDB → URL.createObjectURL() → HTML5 Audio element → pla
 
 ### Lyrics Fetch Flow
 ```
-Player page → click Lyrics → check IndexedDB cache → if miss → fetch lrclib.net/api/get → save to IndexedDB → parse LRC timestamps → highlight active line
+Player page → click Lyrics → load from IndexedDB → if found → display
+                           → if not found → show search input (track name pre-filled)
+                           → user edits query → tap Search → lrclib.net/api/search → show results with Synced/Plain badges
+                           → user taps result → save to IndexedDB → display
+                           → or user taps Paste → paste LRC/plain text → save → display
 ```
 
 ### PWA Update Flow
@@ -308,9 +318,9 @@ All data survives browser refresh, tab closure, and offline mode. Everything is 
 
 ### Lyrics API (lrclib.net)
 ```
-GET https://lrclib.net/api/get?artist_name={artist}&track_name={title}&album_name={album}&duration={duration}
+GET https://lrclib.net/api/search?track_name={title}&artist_name={artist}
 
-GET https://lrclib.net/api/search?q={query}
+Response: array of results with trackName, artistName, albumName, plainLyrics, syncedLyrics
 ```
 
 ### YouTube Download Endpoint

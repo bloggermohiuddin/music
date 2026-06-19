@@ -108,7 +108,7 @@ const PlayerPage = {
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                 Add to Queue
                             </button>
-                            <button onclick="PlayerPage._toggleLyrics()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-200" style="background:var(--surface); color:${Store.get('lyricsPanelOpen') ? 'var(--primary)' : 'var(--text-secondary)'}; border:1px solid var(--border);">
+                            <button id="btn-lyrics" onclick="PlayerPage._toggleLyrics()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-200" style="background:var(--surface); color:${Store.get('lyricsPanelOpen') ? 'var(--primary)' : 'var(--text-secondary)'}; border:1px solid var(--border);">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4H6l-1 0a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2v-2.5M18 13.5l-7 7M13.5 4v4a2 2 0 002 2h4M13.5 4L18 8.5"/></svg>
                                 Lyrics
                             </button>
@@ -500,17 +500,39 @@ const PlayerPage = {
         this._startSleepCountdown();
     },
 
-    _toggleLyrics() {
+    async _toggleLyrics() {
         const open = !Store.get('lyricsPanelOpen');
         Store.set('lyricsPanelOpen', open);
         const section = document.getElementById('lyrics-section');
         if (section) {
             section.classList.toggle('hidden', !open);
             if (open) {
+                Store.set('lyricsResults', null);
+                Store.set('lyricsError', null);
+                const song = Store.get('currentSong');
+                const existing = Store.get('lyrics');
+                if (!existing && song) {
+                    const dbLyrics = await DB.getLyrics(song.id);
+                    if (dbLyrics) {
+                        const parsed = this._parseLRC(dbLyrics.synced_lyrics || '');
+                        Store.set('lyrics', {
+                            songId: song.id,
+                            synced: !!dbLyrics.synced_lyrics,
+                            plain: dbLyrics.plain_lyrics || '',
+                            lines: parsed || (dbLyrics.plain_lyrics ? dbLyrics.plain_lyrics.split('\n').map(t => ({ time: -1, text: t.trim() })).filter(l => l.text) : [])
+                        });
+                    }
+                }
+                this._lastActiveIdx = -1;
                 section.innerHTML = this._renderLyrics();
-                this._loadLyrics();
+                const lyrics = Store.get('lyrics');
+                if (lyrics && lyrics.synced && lyrics.lines && lyrics.lines.length > 0) {
+                    this._startLyricsSync();
+                }
             }
         }
+        const btn = document.getElementById('btn-lyrics');
+        if (btn) btn.style.color = open ? 'var(--primary)' : 'var(--text-secondary)';
     },
 
     _renderLyrics() {
@@ -532,54 +554,69 @@ const PlayerPage = {
         if (results && results.length > 0) {
             return `<div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;">
                 <div class="p-2">
-                    <p class="text-xs px-2 py-1 mb-1" style="color:var(--text-muted);">${results.length} results found — tap to select</p>
-                    ${results.map((r, i) => `
-                        <button onclick="PlayerPage._selectLyrics(${i})" class="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:scale-[1.01]" style="color:var(--text-secondary); border:1px solid var(--border); margin-bottom:4px;">
-                            <div class="font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.trackName || 'Unknown')}</div>
-                            <div class="truncate" style="color:var(--text-muted);">${Utils.htmlEncode(r.artistName || '')} ${r.albumName ? '· ' + Utils.htmlEncode(r.albumName) : ''}</div>
-                        </button>
-                    `).join('')}
+                    <div class="flex items-center justify-between px-2 py-1 mb-1">
+                        <p class="text-xs" style="color:var(--text-muted);">${results.length} results — tap to apply</p>
+                        <button onclick="Store.set('lyricsResults', null); PlayerPage._renderLyricsSection();" class="text-xs" style="color:var(--primary);">New search</button>
+                    </div>
+                    ${results.map((r, i) => {
+                        const hasSynced = !!r.syncedLyrics;
+                        const hasPlain = !!r.plainLyrics;
+                        const typeLabel = hasSynced ? 'Synced' : (hasPlain ? 'Plain' : 'None');
+                        const typeColor = hasSynced ? 'var(--primary)' : (hasPlain ? 'var(--text-muted)' : '#ef4444');
+                        return `
+                        <button onclick="PlayerPage._selectLyrics(${i})" class="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:scale-[1.01]" style="color:var(--text-secondary); border:1px solid var(--border); margin-bottom:4px; ${!hasSynced && !hasPlain ? 'opacity:0.5;' : ''}">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-medium truncate" style="color:var(--text);">${Utils.htmlEncode(r.trackName || 'Unknown')}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0" style="color:${typeColor}; border:1px solid ${typeColor};">${typeLabel}</span>
+                            </div>
+                            <div class="truncate mt-0.5" style="color:var(--text-muted);">${Utils.htmlEncode(r.artistName || '')}${r.albumName ? ' · ' + Utils.htmlEncode(r.albumName) : ''}</div>
+                        </button>`;
+                    }).join('')}
                 </div>
-            </div>
-            <div class="text-center mt-2">
-                <button onclick="Store.set('lyricsResults', null); PlayerPage._renderLyricsSection();" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Back to search</button>
             </div>`;
         }
 
         if (error) {
-            return `<div class="text-center py-6">
-                <p class="text-sm mb-2" style="color:var(--text-muted);">${error}</p>
-                <button onclick="PlayerPage._showSearchInput()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Try Again</button>
+            return `<div class="p-4">
+                <p class="text-xs mb-2 text-center" style="color:var(--text-muted);">${error}</p>
+                ${this._renderSearchInput()}
             </div>`;
         }
 
         if (!lyrics) {
-            return `<div class="text-center py-6">
-                <p class="text-sm mb-3" style="color:var(--text-muted);">No lyrics found</p>
-                <input id="lyrics-search-input" type="text" value="${song ? Utils.htmlEncode(song.title) : ''}" placeholder="Search by track name..." class="w-full max-w-xs mx-auto px-3 py-1.5 rounded-lg text-xs text-center outline-none mb-2" style="background:var(--surface); color:var(--text); border:1px solid var(--border);" onkeydown="if(event.key==='Enter')PlayerPage._searchLyricsManual()">
-                <button id="btn-search-lyrics" onclick="PlayerPage._searchLyricsManual()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-medium" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Search Lyrics</button>
-            </div>`;
+            return `<div class="p-4">${this._renderSearchInput()}</div>`;
         }
+
+        const typeBadge = lyrics.synced
+            ? '<span class="text-[10px] px-1.5 py-0.5 rounded" style="color:var(--primary); border:1px solid var(--primary);">Synced</span>'
+            : '<span class="text-[10px] px-1.5 py-0.5 rounded" style="color:var(--text-muted); border:1px solid var(--border);">Plain</span>';
 
         if (lyrics.lines && lyrics.lines.length > 0) {
             const currentTime = Store.get('currentTime');
             const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
-            const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
+            let activeIdx;
+            if (currentIdx === 0) {
+                activeIdx = -1;
+            } else if (currentIdx > 0) {
+                activeIdx = currentIdx - 1;
+            } else {
+                activeIdx = lyrics.lines.length - 1;
+            }
             return `
                 <div class="rounded-xl overflow-hidden" style="background:var(--surface); border:1px solid var(--border); max-height:300px; overflow-y:auto;" id="lyrics-container">
-                    <div class="p-4 space-y-3" id="lyrics-list">
+                    <div class="py-24 px-4 space-y-3" id="lyrics-list">
                         ${lyrics.lines.map((line, i) => `
-                            <div class="lyric-line text-sm transition-all duration-300 ${i === activeIdx ? 'active-lyric' : ''}" 
-                                data-lyric-idx="${i}"
-                                style="color:${i === activeIdx ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight:${i === activeIdx ? '600' : '400'};">
+                            <div class="lyric-line text-sm ${i === activeIdx ? 'active-lyric' : ''}" 
+                                data-lyric-idx="${i}">
                                 ${Utils.htmlEncode(line.text)}
                             </div>
                         `).join('')}
                     </div>
                 </div>
                 <div class="flex items-center justify-center gap-2 mt-2">
+                    ${typeBadge}
                     <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
-                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Change</button>
                 </div>
             `;
         }
@@ -592,8 +629,9 @@ const PlayerPage = {
                     </div>
                 </div>
                 <div class="flex items-center justify-center gap-2 mt-2">
+                    ${typeBadge}
                     <button onclick="PlayerPage._toggleLyricsFullscreen()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Fullscreen</button>
-                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Search again</button>
+                    <button onclick="PlayerPage._showSearchInput()" class="text-xs px-3 py-1 rounded-lg" style="color:var(--text-muted); border:1px solid var(--border);">Change</button>
                 </div>
             `;
         }
@@ -601,7 +639,64 @@ const PlayerPage = {
         return '';
     },
 
+    _renderSearchInput() {
+        const song = Store.get('currentSong');
+        const pasteMode = Store.get('lyricsPasteMode');
+        if (pasteMode) {
+            return `<div>
+                <textarea id="lyrics-paste-input" rows="8" placeholder="Paste lyrics here...&#10;&#10;Supported formats:&#10;[00:12.34] Line with timestamp&#10;Plain text line (plain lyrics)&#10;&#10;Synced lyrics need timestamps like [00:12.34]" class="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2 resize-none" style="background:var(--surface); color:var(--text); border:1px solid var(--border); font-family:monospace;"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="PlayerPage._savePastedLyrics()" class="flex-1 px-3 py-2 rounded-lg text-sm font-medium" style="background:var(--primary); color:white;">Save</button>
+                    <button onclick="Store.set('lyricsPasteMode', false); PlayerPage._renderLyricsSection();" class="px-3 py-2 rounded-lg text-sm" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Cancel</button>
+                </div>
+            </div>`;
+        }
+        return `<div>
+            <input id="lyrics-search-input" type="text" value="${song ? Utils.htmlEncode(song.title) : ''}" placeholder="Type track name to search..." class="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style="background:var(--surface); color:var(--text); border:1px solid var(--border);" onkeydown="if(event.key==='Enter')PlayerPage._searchLyricsManual()">
+            <div class="flex gap-2">
+                <button onclick="PlayerPage._searchLyricsManual()" class="flex-1 px-3 py-2 rounded-lg text-sm font-medium" style="background:var(--primary); color:white;">Search</button>
+                <button onclick="Store.set('lyricsPasteMode', true); PlayerPage._renderLyricsSection();" class="px-3 py-2 rounded-lg text-sm" style="background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);">Paste</button>
+            </div>
+        </div>`;
+    },
+
+    _savePastedLyrics() {
+        const textarea = document.getElementById('lyrics-paste-input');
+        const text = textarea?.value?.trim();
+        if (!text) return;
+
+        const lineRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)/;
+        const lines = text.split('\n').map(line => {
+            const match = line.match(lineRegex);
+            if (match) {
+                const min = parseInt(match[1]) * 60000;
+                const sec = parseInt(match[2]) * 1000;
+                const ms = match[3].length === 2 ? parseInt(match[3]) * 10 : parseInt(match[3]);
+                return { time: (min + sec + ms) / 1000, text: match[4].trim() };
+            }
+            return { time: -1, text: line.replace(/^\[\d{2}:\d{2}\.\d{2,3}\]\s*/, '').trim() };
+        }).filter(l => l.text);
+
+        const song = Store.get('currentSong');
+        if (!song) return;
+
+        const hasSynced = lines.some(l => l.time >= 0);
+        const lyricsObj = {
+            songId: song.id,
+            synced: hasSynced,
+            plain: lines.map(l => l.text).join('\n'),
+            lines: lines
+        };
+
+        Store.set('lyrics', lyricsObj);
+        Store.set('lyricsResults', null);
+        Store.set('lyricsPasteMode', false);
+        DB.saveLyrics(song.id, lyricsObj.plain, hasSynced ? JSON.stringify(lines) : null);
+        this._renderLyricsSection();
+    },
+
     _renderLyricsSection() {
+        this._lastActiveIdx = -1;
         const section = document.getElementById('lyrics-section');
         if (section) section.innerHTML = this._renderLyrics();
     },
@@ -637,12 +732,19 @@ const PlayerPage = {
         if (lyrics.lines && lyrics.lines.length > 0) {
             const currentTime = Store.get('currentTime');
             const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
-            const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
-            container.innerHTML = `<div class="p-6 md:p-12 space-y-4" style="max-width:600px;margin:0 auto;">
+            let activeIdx;
+            if (currentIdx === 0) {
+                activeIdx = -1;
+            } else if (currentIdx > 0) {
+                activeIdx = currentIdx - 1;
+            } else {
+                activeIdx = lyrics.lines.length - 1;
+            }
+            container.innerHTML = `<div class="py-40 px-6 md:px-12 space-y-4" style="max-width:600px;margin:0 auto;">
                 ${lyrics.lines.map((line, i) => `
-                    <div class="lyric-line-fs text-lg md:text-2xl transition-all duration-300 ${i === activeIdx ? 'active-lyric-fs' : ''}" 
+                    <div class="lyric-line-fs text-lg md:text-2xl ${i === activeIdx ? 'active-lyric-fs' : ''}" 
                         data-lyric-idx="${i}"
-                        style="color:${i === activeIdx ? 'var(--primary)' : 'var(--text-secondary)'}; font-weight:${i === activeIdx ? '700' : '400'}; line-height:1.6;">
+                        style="line-height:1.6;">
                         ${Utils.htmlEncode(line.text)}
                     </div>
                 `).join('')}
@@ -656,23 +758,19 @@ const PlayerPage = {
         document.body.appendChild(overlay);
 
         document.getElementById('close-lyrics-fullscreen')?.addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
-        const scrollActive = () => {
-            const active = container.querySelector('.active-lyric-fs');
-            if (active) {
-                const rect = active.getBoundingClientRect();
-                const cRect = container.getBoundingClientRect();
-                const offset = rect.top - cRect.top - cRect.height / 2 + rect.height / 2;
-                container.scrollBy({ top: offset, behavior: 'smooth' });
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
             }
         };
-        this._fullscreenScrollInterval = setInterval(scrollActive, 500);
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', escHandler);
 
         const observer = new MutationObserver(() => {
             if (!document.getElementById('lyrics-fullscreen-overlay')) {
                 observer.disconnect();
-                clearInterval(this._fullscreenScrollInterval);
             }
         });
         observer.observe(document.body, { childList: true });
@@ -790,6 +888,7 @@ const PlayerPage = {
 
     _startLyricsSync() {
         this._stopLyricsSync();
+        this._lastActiveIdx = -1;
         this._lyricsSyncFrame = requestAnimationFrame(this._updateLyricLine.bind(this));
     },
 
@@ -811,59 +910,51 @@ const PlayerPage = {
             return;
         }
 
-        const isPlaying = Store.get('isPlaying');
         const currentIdx = lyrics.lines.findIndex(l => l.time > currentTime);
-        const activeIdx = currentIdx > 0 ? currentIdx - 1 : (currentIdx === -1 ? lyrics.lines.length - 1 : 0);
+        let activeIdx;
+        if (currentIdx === 0) {
+            activeIdx = -1;
+        } else if (currentIdx > 0) {
+            activeIdx = currentIdx - 1;
+        } else {
+            activeIdx = lyrics.lines.length - 1;
+        }
 
-        document.querySelectorAll('.lyric-line').forEach((el, i) => {
-            const isActive = i === activeIdx;
-            if (isActive) {
-                el.style.color = 'var(--primary)';
-                el.style.fontWeight = '600';
-                el.classList.add('active-lyric');
-            } else {
-                el.style.color = 'var(--text-secondary)';
-                el.style.fontWeight = '400';
-                el.classList.remove('active-lyric');
+        if (this._lastActiveIdx !== activeIdx) {
+            this._lastActiveIdx = activeIdx;
+
+            document.querySelectorAll('.lyric-line').forEach((el, i) => {
+                el.classList.toggle('active-lyric', i === activeIdx);
+                el.classList.toggle('near-lyric', Math.abs(i - activeIdx) === 1);
+            });
+
+            document.querySelectorAll('.lyric-line-fs').forEach((el, i) => {
+                el.classList.toggle('active-lyric-fs', i === activeIdx);
+                el.classList.toggle('near-lyric-fs', Math.abs(i - activeIdx) === 1);
+            });
+
+            if (container) {
+                const activeEl = container.querySelector(`.lyric-line[data-lyric-idx="${activeIdx}"]`);
+                if (activeEl) {
+                    const containerRect = container.getBoundingClientRect();
+                    const elRect = activeEl.getBoundingClientRect();
+                    const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+                    container.scrollBy({ top: offset, behavior: 'smooth' });
+                }
             }
-        });
 
-        document.querySelectorAll('.lyric-line-fs').forEach((el, i) => {
-            const isActive = i === activeIdx;
-            if (isActive) {
-                el.style.color = 'var(--primary)';
-                el.style.fontWeight = '700';
-                el.classList.add('active-lyric-fs');
-            } else {
-                el.style.color = 'var(--text-secondary)';
-                el.style.fontWeight = '400';
-                el.classList.remove('active-lyric-fs');
-            }
-        });
-
-        if (container) {
-            const activeEl = document.querySelector(`.lyric-line[data-lyric-idx="${activeIdx}"]`);
-            if (activeEl) {
-                const containerRect = container.getBoundingClientRect();
-                const elRect = activeEl.getBoundingClientRect();
-                const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
-                container.scrollTop += offset * 0.1;
+            if (fsContainer) {
+                const activeEl = fsContainer.querySelector(`.lyric-line-fs[data-lyric-idx="${activeIdx}"]`);
+                if (activeEl) {
+                    const containerRect = fsContainer.getBoundingClientRect();
+                    const elRect = activeEl.getBoundingClientRect();
+                    const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
+                    fsContainer.scrollBy({ top: offset, behavior: 'smooth' });
+                }
             }
         }
 
-        if (fsContainer) {
-            const activeEl = fsContainer.querySelector(`.lyric-line-fs[data-lyric-idx="${activeIdx}"]`);
-            if (activeEl) {
-                const containerRect = fsContainer.getBoundingClientRect();
-                const elRect = activeEl.getBoundingClientRect();
-                const offset = elRect.top - containerRect.top - containerRect.height / 2 + elRect.height / 2;
-                fsContainer.scrollBy({ top: offset * 0.3, behavior: 'smooth' });
-            }
-        }
-
-        if (isPlaying) {
-            this._lyricsSyncFrame = requestAnimationFrame(this._updateLyricLine.bind(this));
-        }
+        this._lyricsSyncFrame = requestAnimationFrame(this._updateLyricLine.bind(this));
     },
 
     _initQueueDragDrop() {
@@ -929,7 +1020,6 @@ const PlayerPage = {
         this._stopWaveformDrawing();
         this._stopLyricsSync();
         this._lyricsLoading = false;
-        if (this._fullscreenScrollInterval) clearInterval(this._fullscreenScrollInterval);
         const fsOverlay = document.getElementById('lyrics-fullscreen-overlay');
         if (fsOverlay) fsOverlay.remove();
         if (this._sleepCountdownInterval) clearInterval(this._sleepCountdownInterval);

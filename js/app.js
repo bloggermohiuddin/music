@@ -149,12 +149,37 @@
     });
 
     // Store subscriptions for reactive updates
-    Store.subscribe('currentSong', () => {
+    Store.subscribe('currentSong', async () => {
         MiniPlayerComponent.render();
         Store.set('lyrics', null);
         Store.set('lyricsError', null);
         Store.set('lyricsLoading', false);
+        Store.set('lyricsResults', null);
         if (window.PlayerPage) PlayerPage._stopLyricsSync();
+        const fsOverlay = document.getElementById('lyrics-fullscreen-overlay');
+        if (fsOverlay) fsOverlay.remove();
+        if (Store.get('lyricsPanelOpen')) {
+            const song = Store.get('currentSong');
+            if (song) {
+                const dbLyrics = await DB.getLyrics(song.id);
+                if (dbLyrics) {
+                    const parsed = window.PlayerPage ? PlayerPage._parseLRC(dbLyrics.synced_lyrics || '') : null;
+                    Store.set('lyrics', {
+                        songId: song.id,
+                        synced: !!dbLyrics.synced_lyrics,
+                        plain: dbLyrics.plain_lyrics || '',
+                        lines: parsed || (dbLyrics.plain_lyrics ? dbLyrics.plain_lyrics.split('\n').map(t => ({ time: -1, text: t.trim() })).filter(l => l.text) : [])
+                    });
+                }
+                if (window.PlayerPage) PlayerPage._renderLyricsSection();
+                if (window.PlayerPage) {
+                    const lyrics = Store.get('lyrics');
+                    if (lyrics && lyrics.synced && lyrics.lines && lyrics.lines.length > 0) {
+                        PlayerPage._startLyricsSync();
+                    }
+                }
+            }
+        }
     });
     Store.subscribe('isPlaying', () => {
         MiniPlayerComponent.updatePlayButton();
