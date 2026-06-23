@@ -1,4 +1,4 @@
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
@@ -10,6 +10,7 @@ const STATIC_URLS = [
     '/',
     '/index.html',
     '/manifest.json',
+    '/css/tailwind.css',
     '/js/app.js',
     '/js/router.js',
     '/js/store.js',

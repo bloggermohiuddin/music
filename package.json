@@ -1,0 +1,25 @@
+{
+  "name": "music",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"icons/logo-full.png\" alt=\"Audivo\" width=\"400\"> </p>",
+  "main": "sw.js",
+  "scripts": {
+    "build": "npx tailwindcss -i ./src/input.css -o ./css/tailwind.css --minify",
+    "dev": "npx tailwindcss -i ./src/input.css -o ./css/tailwind.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bloggermohiuddin/music.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bloggermohiuddin/music/issues"
+  },
+  "homepage": "https://github.com/bloggermohiuddin/music#readme",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

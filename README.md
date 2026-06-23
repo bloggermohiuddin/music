@@ -174,7 +174,7 @@
 | Technology | Purpose |
 |------------|---------|
 | HTML5 | Structure |
-| Tailwind CSS (CDN) | Styling |
+| Tailwind CSS (npm, v3) | Utility-first CSS framework, compiled to static CSS |
 | Vanilla JS (ES6+) | Logic |
 | IndexedDB | Large blob storage (songs, playlists, lyrics, settings) |
 | Service Worker | Offline caching + versioned updates |
@@ -192,11 +192,17 @@
 ## Project Structure
 
 ```
-├── index.html              # Entry point with Tailwind CSS
+├── index.html              # Entry point with compiled Tailwind CSS
 ├── widget.html             # PWA now-playing widget page
 ├── manifest.json           # PWA manifest (shortcuts + widgets)
-├── sw.js                   # Service Worker (versioned caches, v2.2.0)
+├── sw.js                   # Service Worker (versioned caches, v2.3.0)
 ├── serve.json              # Static server config
+├── package.json            # npm config — tailwindcss, build/dev scripts
+├── tailwind.config.js      # Tailwind CSS configuration
+├── src/
+│   └── input.css           # Tailwind directives (base, components, utilities)
+├── css/
+│   └── tailwind.css        # Compiled Tailwind CSS (minified, ~20KB)
 ├── .gitignore              # Git ignore rules
 ├── .htaccess               # Apache SPA rewrite
 ├── icons/
@@ -242,6 +248,10 @@
 
 ### Quick Start
 ```bash
+# Install dependencies and build CSS
+npm install
+npm run build
+
 # Using npx
 npx serve .
 
@@ -253,6 +263,11 @@ php -S localhost:8080
 
 # Using XAMPP / WAMP
 # Place project in htdocs or www folder
+```
+
+### Development
+```bash
+npm run dev   # Watch mode — rebuilds CSS on file changes
 ```
 
 Open `http://localhost:8080` in your browser.
