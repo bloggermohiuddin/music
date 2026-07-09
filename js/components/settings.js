@@ -93,6 +93,17 @@ const SettingsPage = {
                                         style="background:white; transform:translateX(${Store.get('carMode') ? '24px' : '0'});"></div>
                                 </button>
                             </div>
+                            <div>
+                                <p class="text-sm font-medium mb-2" style="color:var(--text);">Screen Orientation</p>
+                                <p class="text-xs mb-2" style="color:var(--text-secondary);">Lock screen rotation (PWA only)</p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${['auto', 'portrait', 'landscape'].map(o => `
+                                        <button class="settings-orientation-btn px-2.5 py-1 rounded-lg text-xs transition-all ${Store.get('orientationLock') === o ? 'ring-2' : 'hover:scale-105'}" 
+                                            data-orientation="${o}"
+                                            style="${Store.get('orientationLock') === o ? 'background:var(--primary); color:white;' : 'background:var(--surface); color:var(--text-secondary); border:1px solid var(--border);'}">${o.charAt(0).toUpperCase() + o.slice(1)}</button>
+                                    `).join('')}
+                                </div>
+                            </div>
                         </div>
                     </section>
 
@@ -280,6 +291,23 @@ const SettingsPage = {
             document.body.classList.toggle('car-mode', !current);
             this.style.background = !current ? 'var(--primary)' : 'var(--surface)';
             this.querySelector('div').style.transform = !current ? 'translateX(24px)' : 'translateX(0)';
+        });
+        document.querySelectorAll('.settings-orientation-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const orientation = btn.dataset.orientation;
+                Store.set('orientationLock', orientation);
+                document.querySelectorAll('.settings-orientation-btn').forEach(b => {
+                    b.style.background = 'var(--surface)';
+                    b.style.color = 'var(--text-secondary)';
+                    b.style.border = '1px solid var(--border)';
+                    b.classList.remove('ring-2');
+                });
+                btn.style.background = 'var(--primary)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.classList.add('ring-2');
+                SettingsPage._applyOrientationLock(orientation);
+            });
         });
         document.getElementById('settings-shuffle-toggle')?.addEventListener('click', function() {
             const current = Store.get('shuffle');
@@ -625,6 +653,15 @@ const SettingsPage = {
 
         btn.disabled = false;
         btn.textContent = 'Check for Updates';
+    },
+
+    _applyOrientationLock(mode) {
+        if (!screen.orientation?.lock) return;
+        if (mode === 'auto') {
+            screen.orientation.unlock();
+        } else {
+            screen.orientation.lock(mode).catch(() => {});
+        }
     },
 
     cleanup() {

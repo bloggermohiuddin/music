@@ -31,6 +31,7 @@ var Store = (function() {
         crossfade: 0,
         queuePanelOpen: true,
         carMode: false,
+        orientationLock: 'auto',
         lyrics: null,
         lyricsLoading: false,
         lyricsResults: null,
@@ -101,10 +102,29 @@ var Store = (function() {
                 this.set('songs', songs.filter(function(s) { return s.blob !== null; }));
                 var info = await DB.getStorageInfo();
                 this.set('storageInfo', info);
+                this._migrateThumbnails(songs);
             } catch (e) {
                 console.error('Failed to load songs:', e);
             }
             this.set('loading', false);
+        },
+
+        _migrateThumbnails: async function(songs) {
+            for (var s of songs) {
+                if (s.thumbnail && s.thumbnail.startsWith('http')) {
+                    try {
+                        var resp = await fetch(s.thumbnail);
+                        var blob = await resp.blob();
+                        var dataUrl = await new Promise(function(resolve) {
+                            var reader = new FileReader();
+                            reader.onloadend = function() { resolve(reader.result); };
+                            reader.readAsDataURL(blob);
+                        });
+                        s.thumbnail = dataUrl;
+                        await DB.put('songs', s);
+                    } catch (e) {}
+                }
+            }
         },
 
         loadPlaylists: async function() {

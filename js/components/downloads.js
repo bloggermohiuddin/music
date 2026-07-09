@@ -407,7 +407,21 @@ const DownloadsPage = {
             }
 
             const blob = new Blob(chunks, { type: 'audio/mpeg' });
-            const thumbnail = data.thumbnail || null;
+            let thumbnail = data.thumbnail || null;
+
+            if (thumbnail && thumbnail.startsWith('http')) {
+                try {
+                    const thumbResp = await fetch(thumbnail, { signal });
+                    const thumbBlob = await thumbResp.blob();
+                    thumbnail = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(thumbBlob);
+                    });
+                } catch (e) {
+                    console.warn('Thumbnail fetch failed, keeping URL:', e);
+                }
+            }
 
             await DB.addSong({
                 title: data.title || 'YouTube Song',

@@ -33,6 +33,10 @@
         document.body.classList.add('car-mode');
     }
 
+    if (SettingsPage && Store.get('orientationLock')) {
+        SettingsPage._applyOrientationLock(Store.get('orientationLock'));
+    }
+
     await Store.refreshAll();
     console.log('Store refreshed');
 
