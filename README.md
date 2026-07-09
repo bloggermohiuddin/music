@@ -25,7 +25,7 @@
 - **Offline-First** — All songs stored as blobs in IndexedDB. Service Worker caches everything. Works in airplane mode.
 - **Installable PWA** — Web App Manifest, Service Worker, standalone mode, lock screen controls, home screen widget.
 - **PWA Auto-Update** — Versioned caches with skip-waiting. Check for Updates in settings compares versions and reloads automatically.
-- **PWA Home Screen Widget** — Now Playing widget with artwork, playback controls, seek bar. BroadcastChannel communication with main app.
+- **PWA Home Screen Widget** — Now Playing widget with artwork, playback controls, seek bar, synced lyrics display. BroadcastChannel + localStorage fallback for Android support.
 - **Car Mode** — Larger controls and simplified UI optimized for driving. Toggle from player or settings.
 - **12 Themes** — Dark, Pure Black OLED, Light, Glassmorphism, Neon, Forest, Ocean, Sunset, Midnight, Dracula, Cyberpunk, Sepia.
 
@@ -69,7 +69,9 @@
 - **Play Next** — insert song right after current track
 - **Auto-update player page** — player UI updates when song changes via auto-next
 - **Audio visualizer** — rounded bars with gradient, peak dots that slowly fall, 64 frequency bars (HiDPI support)
+- **Gapless playback** — next song pre-loaded, zero silence gap between tracks
 - Crossfade (0–12 seconds) — respects user volume setting
+- **Visual crossfade** — album art smoothly fades during song transitions
 - Fade in / Fade out
 - **Sleep timer in player** — presets (5/10/15/30/45/60 min) + custom input (1–480 min) with live countdown; auto-adjusts to track length
 - Media Session API (lock screen controls)
@@ -130,6 +132,7 @@
 - Default playback speed
 - Default repeat / shuffle
 - **Car Mode** toggle
+- **Screen Orientation** lock — Auto / Portrait / Landscape (PWA only)
 - **10-band Equalizer** with presets
 - **Audio Effects** — reverb, echo, bass boost sliders with reset
 - **Listening Stats** — total songs played, listen time, top 5 artists bar chart, last 7 days history chart
@@ -195,7 +198,7 @@
 ├── index.html              # Entry point with compiled Tailwind CSS
 ├── widget.html             # PWA now-playing widget page
 ├── manifest.json           # PWA manifest (shortcuts + widgets)
-├── sw.js                   # Service Worker (versioned caches, v2.3.0)
+├── sw.js                   # Service Worker (versioned caches, v2.5.0)
 ├── serve.json              # Static server config
 ├── package.json            # npm config — tailwindcss, build/dev scripts
 ├── tailwind.config.js      # Tailwind CSS configuration

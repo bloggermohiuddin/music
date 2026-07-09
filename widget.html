@@ -140,6 +140,33 @@
             text-decoration: none;
         }
         .open-app:hover { text-decoration: underline; }
+        .lyrics-container {
+            width: 100%;
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 12px;
+            text-align: center;
+            scrollbar-width: none;
+            mask-image: linear-gradient(transparent, black 20%, black 80%, transparent);
+            -webkit-mask-image: linear-gradient(transparent, black 20%, black 80%, transparent);
+        }
+        .lyrics-container::-webkit-scrollbar { display: none; }
+        .lyrics-line {
+            font-size: 13px;
+            color: #555;
+            padding: 3px 0;
+            transition: color 0.3s, font-weight 0.3s, opacity 0.3s;
+            opacity: 0.5;
+        }
+        .lyrics-line.active {
+            color: #1db954;
+            font-weight: 600;
+            opacity: 1;
+        }
+        .lyrics-line.near {
+            color: #888;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -171,15 +198,19 @@
                 <input type="range" id="seek-bar" min="0" max="100" value="0">
                 <span class="time" id="duration">0:00</span>
             </div>
+            <div class="lyrics-container" id="lyrics-container" style="display:none;"></div>
         </div>
         <a class="open-app" href="/" id="open-app">Open Audivo</a>
     </div>
 
     <script>
-        const channel = new BroadcastChannel('audivo-widget');
+        let channel;
+        try { channel = new BroadcastChannel('audivo-widget'); } catch (e) {}
         const $ = id => document.getElementById(id);
 
         let playing = false;
+        let lyricsData = null;
+        let currentLyricIdx = -1;
 
         function formatTime(s) {
             if (!s || isNaN(s)) return '0:00';
@@ -214,33 +245,75 @@
                 $('seek-bar').value = data.currentTime;
                 $('current-time').textContent = formatTime(data.currentTime);
             }
+            if (data.lyrics) {
+                lyricsData = data.lyrics;
+                renderLyrics(data.currentTime || 0);
+            }
         }
 
-        channel.onmessage = (e) => {
-            if (e.data && e.data.type === 'state-update') {
-                updateUI(e.data);
+        function renderLyrics(time) {
+            if (!lyricsData || !lyricsData.lines || !lyricsData.lines.length) {
+                $('lyrics-container').style.display = 'none';
+                return;
             }
-        };
+            $('lyrics-container').style.display = '';
+            const lines = lyricsData.lines;
+            const timedLines = lines.filter(l => l.time >= 0);
+            if (!timedLines.length) {
+                $('lyrics-container').innerHTML = lines.map((l, i) =>
+                    '<div class="lyrics-line' + (i === 0 ? ' active' : '') + '">' + (l.text || '') + '</div>'
+                ).join('');
+                return;
+            }
+            let activeIdx = -1;
+            for (let i = lines.length - 1; i >= 0; i--) {
+                if (lines[i].time >= 0 && lines[i].time <= time) { activeIdx = i; break; }
+            }
+            if (activeIdx === currentLyricIdx) return;
+            currentLyricIdx = activeIdx;
+            const container = $('lyrics-container');
+            container.innerHTML = lines.map((l, i) => {
+                let cls = 'lyrics-line';
+                if (i === activeIdx) cls += ' active';
+                else if (Math.abs(i - activeIdx) === 1) cls += ' near';
+                return '<div class="' + cls + '" data-idx="' + i + '">' + (l.text || '') + '</div>';
+            }).join('');
+            if (activeIdx >= 0) {
+                const activeEl = container.querySelector('.active');
+                if (activeEl) {
+                    const cRect = container.getBoundingClientRect();
+                    const eRect = activeEl.getBoundingClientRect();
+                    const offset = eRect.top - cRect.top - cRect.height / 2 + eRect.height / 2;
+                    container.scrollBy({ top: offset, behavior: 'smooth' });
+                }
+            }
+        }
 
-        $('play-btn').addEventListener('click', () => {
-            channel.postMessage({ type: 'command', action: playing ? 'pause' : 'play' });
-        });
-        $('prev-btn').addEventListener('click', () => {
-            channel.postMessage({ type: 'command', action: 'prev' });
-        });
-        $('next-btn').addEventListener('click', () => {
-            channel.postMessage({ type: 'command', action: 'next' });
-        });
-        $('seek-bar').addEventListener('input', (e) => {
-            channel.postMessage({ type: 'command', action: 'seek', time: parseFloat(e.target.value) });
-        });
-        $('open-app').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.open('/', '_blank');
+        function sendCommand(action, extra) {
+            const msg = { type: 'command', action, ...extra };
+            try { if (channel) channel.postMessage(msg); } catch (e) {}
+            try { localStorage.setItem('audivo-widget-cmd', JSON.stringify(msg)); } catch (e) {}
+        }
+
+        if (channel) {
+            channel.onmessage = (e) => {
+                if (e.data && e.data.type === 'state-update') updateUI(e.data);
+            };
+        }
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'audivo-widget-state' && e.newValue) {
+                try { updateUI(JSON.parse(e.newValue)); } catch (err) {}
+            }
         });
 
-        // Request current state from main app
-        channel.postMessage({ type: 'request-state' });
+        $('play-btn').addEventListener('click', () => sendCommand(playing ? 'pause' : 'play'));
+        $('prev-btn').addEventListener('click', () => sendCommand('prev'));
+        $('next-btn').addEventListener('click', () => sendCommand('next'));
+        $('seek-bar').addEventListener('input', (e) => sendCommand('seek', { time: parseFloat(e.target.value) }));
+        $('open-app').addEventListener('click', (e) => { e.preventDefault(); window.open('/', '_blank'); });
+
+        try { if (channel) channel.postMessage({ type: 'request-state' }); } catch (e) {}
     </script>
 </body>
 </html>

@@ -96,6 +96,9 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .car-mode .player-volume input[type=range] { width: 7rem !important; }
 .car-mode .player-seek-bar { height: 0.5rem !important; }
 .song-card.drag-over, .song-list-item.drag-over { opacity: 0.7; }
+.player-album-art { transition: opacity 0.6s ease, transform 0.6s ease; }
+.player-album-art.crossfade-out { opacity: 0; transform: scale(0.95); }
+.player-album-art.crossfade-in { opacity: 1; transform: scale(1); }
 .song-card, .search-item, .history-item { transition: all 0.2s ease; touch-action: manipulation; }
 .song-list-item { touch-action: manipulation; }
 #context-menu button:hover { background: var(--surface-hover); }

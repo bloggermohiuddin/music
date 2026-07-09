@@ -2,6 +2,7 @@ const PlayerPage = {
     _unsubs: [],
     _waveformBars: [],
     _lyricsLoading: false,
+    _lastSongId: null,
 
     async render() {
         const song = Store.get('currentSong');
@@ -246,6 +247,22 @@ const PlayerPage = {
         });
 
         this._initQueueDragDrop();
+        this._triggerAlbumCrossfade(song?.id);
+    },
+
+    _triggerAlbumCrossfade(songId) {
+        if (this._lastSongId && this._lastSongId !== songId) {
+            const art = document.querySelector('.player-album-art');
+            if (art) {
+                art.classList.add('crossfade-out');
+                setTimeout(() => {
+                    art.classList.remove('crossfade-out');
+                    art.classList.add('crossfade-in');
+                    setTimeout(() => art.classList.remove('crossfade-in'), 600);
+                }, 300);
+            }
+        }
+        this._lastSongId = songId;
     },
 
     _startWaveformDrawing() {

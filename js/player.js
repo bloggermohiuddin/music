@@ -1,6 +1,11 @@
 class AudioPlayer {
     constructor() {
         this.audio = new Audio();
+        this._preloadAudio = new Audio();
+        this._preloadAudio.preload = 'auto';
+        this._preloadAudio.src = '';
+        this._preloadedBlobUrl = null;
+        this._preloadedSongId = null;
         this.audioContext = null;
         this.analyser = null;
         this.source = null;
@@ -97,21 +102,42 @@ class AudioPlayer {
                 }
             };
         } catch (e) {}
+        window.addEventListener('storage', (e) => {
+            if (e.key !== 'audivo-widget-cmd') return;
+            try {
+                const cmd = JSON.parse(e.newValue);
+                if (!cmd) return;
+                switch (cmd.action) {
+                    case 'play': this.play(); break;
+                    case 'pause': this.pause(); break;
+                    case 'prev': this.previous(); break;
+                    case 'next': this.next(); break;
+                    case 'seek': if (cmd.time !== undefined) this.seek(cmd.time); break;
+                }
+            } catch (err) {}
+        });
     }
 
     _broadcastWidgetState() {
-        if (!this._widgetChannel) return;
         const song = Store.get('currentSong');
         const playing = !this.audio.paused;
-        this._widgetChannel.postMessage({
+        const state = {
             type: 'state-update',
             title: song?.title || null,
             artist: song?.artist || null,
             thumbnail: song?.thumbnail || null,
             playing,
             currentTime: this.audio.currentTime || 0,
-            duration: this.audio.duration || 0
-        });
+            duration: this.audio.duration || 0,
+            lyrics: Store.get('lyrics') ? { lines: Store.get('lyrics').lines, synced: Store.get('lyrics').synced } : null
+        };
+        try {
+            if (this._widgetChannel) this._widgetChannel.postMessage(state);
+        } catch (e) {}
+        try {
+            localStorage.setItem('audivo-widget-state', JSON.stringify(state));
+            localStorage.removeItem('audivo-widget-state');
+        } catch (e) {}
     }
 
     _updateMediaSession() {
@@ -152,7 +178,13 @@ class AudioPlayer {
             URL.revokeObjectURL(this._currentBlobUrl);
             this._currentBlobUrl = null;
         }
-        if (song.blob && song.blob instanceof Blob) {
+
+        if (this._preloadedSongId === song.id && this._preloadedBlobUrl) {
+            this.audio.src = this._preloadedBlobUrl;
+            this._currentBlobUrl = this._preloadedBlobUrl;
+            this._preloadedBlobUrl = null;
+            this._preloadedSongId = null;
+        } else if (song.blob && song.blob instanceof Blob) {
             const url = URL.createObjectURL(song.blob);
             this.audio.src = url;
             this._currentBlobUrl = url;
@@ -175,12 +207,36 @@ class AudioPlayer {
 
         this._updateMediaSession();
         this._broadcastWidgetState();
+        this._preloadNext();
         try {
             await DB.addToHistory(song.id, 0);
         } catch (e) {
             console.warn('Failed to add to history:', e);
         }
         Store.loadHistory();
+    }
+
+    _preloadNext() {
+        const queue = Store.get('queue');
+        const idx = Store.get('queueIndex');
+        const nextIdx = idx + 1;
+        if (nextIdx >= queue.length) return;
+        const nextSong = queue[nextIdx];
+        if (!nextSong || !nextSong.blob) return;
+        if (this._preloadedSongId === nextSong.id) return;
+        if (this._preloadedBlobUrl) {
+            URL.revokeObjectURL(this._preloadedBlobUrl);
+            this._preloadedBlobUrl = null;
+        }
+        if (nextSong.blob instanceof Blob) {
+            this._preloadedBlobUrl = URL.createObjectURL(nextSong.blob);
+        } else {
+            try {
+                this._preloadedBlobUrl = URL.createObjectURL(new Blob([nextSong.blob], { type: 'audio/mpeg' }));
+            } catch (e) { return; }
+        }
+        this._preloadAudio.src = this._preloadedBlobUrl;
+        this._preloadedSongId = nextSong.id;
     }
 
     async play() {

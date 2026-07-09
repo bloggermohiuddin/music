@@ -1,4 +1,4 @@
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
