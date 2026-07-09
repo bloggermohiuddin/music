@@ -136,7 +136,6 @@ class AudioPlayer {
         } catch (e) {}
         try {
             localStorage.setItem('audivo-widget-state', JSON.stringify(state));
-            localStorage.removeItem('audivo-widget-state');
         } catch (e) {}
     }
 

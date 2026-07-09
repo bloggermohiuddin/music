@@ -301,6 +301,17 @@
             };
         }
 
+        let lastWidgetState = '';
+        setInterval(() => {
+            try {
+                const raw = localStorage.getItem('audivo-widget-state');
+                if (raw && raw !== lastWidgetState) {
+                    lastWidgetState = raw;
+                    updateUI(JSON.parse(raw));
+                }
+            } catch (e) {}
+        }, 500);
+
         window.addEventListener('storage', (e) => {
             if (e.key === 'audivo-widget-state' && e.newValue) {
                 try { updateUI(JSON.parse(e.newValue)); } catch (err) {}
@@ -311,7 +322,10 @@
         $('prev-btn').addEventListener('click', () => sendCommand('prev'));
         $('next-btn').addEventListener('click', () => sendCommand('next'));
         $('seek-bar').addEventListener('input', (e) => sendCommand('seek', { time: parseFloat(e.target.value) }));
-        $('open-app').addEventListener('click', (e) => { e.preventDefault(); window.open('/', '_blank'); });
+        $('open-app').addEventListener('click', (e) => {
+            e.preventDefault();
+            try { window.location.href = '/'; } catch (err) { window.open('/', '_blank'); }
+        });
 
         try { if (channel) channel.postMessage({ type: 'request-state' }); } catch (e) {}
     </script>

@@ -1,4 +1,4 @@
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.2';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
@@ -64,6 +64,9 @@ self.addEventListener('activate', (event) => {
             );
         }).then(() => self.clients.claim())
     );
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => client.postMessage({ type: 'sw-updated' }));
+    });
 });
 
 self.addEventListener('fetch', (event) => {
