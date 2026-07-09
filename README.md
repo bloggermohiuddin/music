@@ -198,7 +198,7 @@
 ├── index.html              # Entry point with compiled Tailwind CSS
 ├── widget.html             # PWA now-playing widget page
 ├── manifest.json           # PWA manifest (shortcuts + widgets)
-├── sw.js                   # Service Worker (versioned caches, v2.5.3)
+├── sw.js                   # Service Worker (versioned caches, v2.5.5)
 ├── serve.json              # Static server config
 ├── package.json            # npm config — tailwindcss, build/dev scripts
 ├── tailwind.config.js      # Tailwind CSS configuration

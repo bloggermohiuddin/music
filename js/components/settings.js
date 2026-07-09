@@ -615,7 +615,6 @@ const SettingsPage = {
             if (currentVersion !== freshVersion) {
                 status.textContent = 'Update found (v' + freshVersion + ')! Reloading...';
                 status.style.color = 'var(--primary)';
-                // Force SW update
                 const registration = await navigator.serviceWorker.getRegistration('/');
                 if (registration) {
                     await registration.update();
@@ -656,11 +655,18 @@ const SettingsPage = {
     },
 
     _applyOrientationLock(mode) {
-        if (!screen.orientation?.lock) return;
+        if (!screen.orientation?.lock) {
+            Store.showNotification('Orientation lock requires installed PWA mode', 'info');
+            return;
+        }
         if (mode === 'auto') {
-            screen.orientation.unlock();
+            screen.orientation.unlock().catch(() => {});
         } else {
-            screen.orientation.lock(mode).catch(() => {});
+            screen.orientation.lock(mode).then(() => {
+                Store.showNotification('Orientation locked to ' + mode, 'success');
+            }).catch(() => {
+                Store.showNotification('Orientation lock not supported in browser tab — install as PWA', 'warning');
+            });
         }
     },
 
