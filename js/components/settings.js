@@ -660,7 +660,7 @@ const SettingsPage = {
             return;
         }
         if (mode === 'auto') {
-            screen.orientation.unlock().catch(() => {});
+            try { screen.orientation.unlock(); } catch (e) {}
         } else {
             screen.orientation.lock(mode).then(() => {
                 Store.showNotification('Orientation locked to ' + mode, 'success');
