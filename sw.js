@@ -1,4 +1,4 @@
-const APP_VERSION = '2.5.2';
+const APP_VERSION = '2.5.3';
 const CACHE_PREFIX = 'audivo-v';
 
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
@@ -52,12 +52,10 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
+            const keep = new Set([STATIC_CACHE, AUDIO_CACHE, THUMB_CACHE]);
             return Promise.all(
                 cacheNames.map((name) => {
-                    if (name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME && name !== STATIC_CACHE && name !== AUDIO_CACHE && name !== THUMB_CACHE) {
-                        return caches.delete(name);
-                    }
-                    if (!name.startsWith(CACHE_PREFIX) && name.startsWith('music-') && name !== STATIC_CACHE && name !== AUDIO_CACHE && name !== THUMB_CACHE) {
+                    if (!keep.has(name)) {
                         return caches.delete(name);
                     }
                 })
