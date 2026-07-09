@@ -382,6 +382,13 @@
                 refreshing = true;
                 window.location.reload();
             });
+
+            navigator.serviceWorker.addEventListener('message', (e) => {
+                if (e.data && e.data.type === 'sw-updated' && !refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
         } catch (e) {
             console.warn('ServiceWorker registration failed:', e);
         }
